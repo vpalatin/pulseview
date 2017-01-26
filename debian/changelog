@@ -1,3 +1,15 @@
+pulseview (0.2.0-1.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Bump debhelper compat level to 10.
+  * Add patch from upstream to fix build with GCC 6.  Closes: #811960
+  * Drop menu file; the T-CTTE decided to deprecate the menu system, see #741573
+  * Install a .desktop file and the icon.
+    Thanks to Jérôme <buggerone@gmail.com> for the patch.  Closes: #781944
+  * d/copyright fix DEP-5 syntax.
+
+ -- Mattia Rizzolo <mattia@debian.org>  Thu, 26 Jan 2017 14:19:00 +0100
+
 pulseview (0.2.0-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.

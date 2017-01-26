@@ -1,0 +1,53 @@
+Description: Fix FTBFS with GCC 6
+Origin: upstream, http://sigrok.org/gitweb/?p=pulseview.git;a=commit;h=db8a1b5c7e7cc3663fa8582749db289383c68313
+Origin: upstream, http://sigrok.org/gitweb/?p=pulseview.git;a=commit;h=c28fa62bc89656ba3b1b01011a45e941d6c7d42a
+Author: Aurelien Jacobs <aurel@gnuage.org>
+Author: Soeren Apel <soeren@apelpie.net>
+Bug-Debian: https://bugs.debian.org/811960
+Last-Update: 2016-08-25
+
+--- a/pv/dialogs/about.cpp
++++ b/pv/dialogs/about.cpp
+@@ -107,9 +107,9 @@
+ 
+ 	s.append("</table>");
+ 
+-	supportedDoc.reset(new QTextDocument(this));
++	supportedDoc = new QTextDocument(this);
+ 	supportedDoc->setHtml(s);
+-	ui->supportList->setDocument(supportedDoc.get());
++	ui->supportList->setDocument(supportedDoc);
+ }
+ 
+ About::~About()
+--- a/pv/dialogs/about.h
++++ b/pv/dialogs/about.h
+@@ -44,7 +44,7 @@
+ 
+ private:
+ 	Ui::About *ui;
+-	std::auto_ptr<QTextDocument> supportedDoc;
++	QTextDocument *supportedDoc;
+ };
+ 
+ } // namespace dialogs
+--- a/pv/data/logicsnapshot.cpp
++++ b/pv/data/logicsnapshot.cpp
+@@ -315,7 +315,7 @@
+ 				pow2_ceil(index, MipMapScalePower));
+ 
+ 			for (; index < final_index &&
+-				(index & ~(~0 << MipMapScalePower)) != 0;
++				(index & ~((uint64_t)(~0) << MipMapScalePower)) != 0;
+ 				index++)
+ 			{
+ 				const bool sample =
+@@ -368,7 +368,7 @@
+ 						sig_mask))
+ 					break;
+ 
+-				if ((offset & ~(~0 << MipMapScalePower)) == 0) {
++				if ((offset & ~((uint64_t)(~0) << MipMapScalePower)) == 0) {
+ 					// If we are now at the beginning of a
+ 					// higher level mip-map block ascend one
+ 					// level
