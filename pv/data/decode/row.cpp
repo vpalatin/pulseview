@@ -14,11 +14,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "row.h"
+#include "row.hpp"
 
 #include <libsigrokdecode/libsigrokdecode.h>
 
@@ -27,46 +26,46 @@ namespace data {
 namespace decode {
 
 Row::Row() :
-	_decoder(NULL),
-	_row(NULL)
+	decoder_(nullptr),
+	row_(nullptr)
 {
 }
 
 Row::Row(const srd_decoder *decoder, const srd_decoder_annotation_row *row) :
-	_decoder(decoder),
-	_row(row)
+	decoder_(decoder),
+	row_(row)
 {
 }
 
 const srd_decoder* Row::decoder() const
 {
-	return _decoder;
+	return decoder_;
 }
 
 const srd_decoder_annotation_row* Row::row() const
 {
-	return _row;
+	return row_;
 }
 
 const QString Row::title() const
 {
-	if (_decoder && _decoder->name && _row && _row->desc)
+	if (decoder_ && decoder_->name && row_ && row_->desc)
 		return QString("%1: %2")
-			.arg(QString::fromUtf8(_decoder->name))
-			.arg(QString::fromUtf8(_row->desc));
-	if (_decoder && _decoder->name)
-		return QString::fromUtf8(_decoder->name);
-	if (_row && _row->desc)
-		return QString::fromUtf8(_row->desc);
+			.arg(QString::fromUtf8(decoder_->name),
+			     QString::fromUtf8(row_->desc));
+	if (decoder_ && decoder_->name)
+		return QString::fromUtf8(decoder_->name);
+	if (row_ && row_->desc)
+		return QString::fromUtf8(row_->desc);
 	return QString();
 }
 
 bool Row::operator<(const Row &other) const
 {
-	return (_decoder < other._decoder) ||
-		(_decoder == other._decoder && _row < other._row);
+	return (decoder_ < other.decoder_) ||
+		(decoder_ == other.decoder_ && row_ < other.row_);
 }
 
-} // decode
-} // data
-} // pv
+}  // namespace decode
+}  // namespace data
+}  // namespace pv

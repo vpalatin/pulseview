@@ -14,14 +14,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef PULSEVIEW_EXTDEF_H
 #define PULSEVIEW_EXTDEF_H
 
-#define countof(x) (sizeof(x)/sizeof(x[0]))
+#define countof(x) (sizeof(x) / sizeof(x[0]))
 
 #define begin_element(x) (&x[0])
 #define end_element(x) (&x[countof(x)])

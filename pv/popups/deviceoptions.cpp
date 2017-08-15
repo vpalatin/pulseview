@@ -14,39 +14,39 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "deviceoptions.h"
-
-#include <boost/foreach.hpp>
+#include "deviceoptions.hpp"
 
 #include <QFormLayout>
 #include <QListWidget>
 
-#include <pv/prop/property.h>
+#include <pv/prop/property.hpp>
 
-using boost::shared_ptr;
+#include <libsigrokcxx/libsigrokcxx.hpp>
+
+using std::shared_ptr;
+
+using sigrok::Device;
 
 namespace pv {
 namespace popups {
 
-DeviceOptions::DeviceOptions(shared_ptr<device::DevInst> dev_inst,
-	QWidget *parent) :
+DeviceOptions::DeviceOptions(shared_ptr<Device> device, QWidget *parent) :
 	Popup(parent),
-	_dev_inst(dev_inst),
-	_layout(this),
-	_binding(dev_inst)
+	device_(device),
+	layout_(this),
+	binding_(device)
 {
-	setLayout(&_layout);
+	setLayout(&layout_);
 
-	_layout.addWidget(_binding.get_property_form(this, true));
+	layout_.addWidget(binding_.get_property_form(this, true));
 }
 
-pv::prop::binding::DeviceOptions& DeviceOptions::binding()
+pv::binding::Device& DeviceOptions::binding()
 {
-	return _binding;
+	return binding_;
 }
 
 } // namespace popups

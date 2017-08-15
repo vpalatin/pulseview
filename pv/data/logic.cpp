@@ -14,58 +14,70 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/foreach.hpp>
+#include <cassert>
 
-#include "logic.h"
-#include "logicsnapshot.h"
+#include "logic.hpp"
+#include "logicsegment.hpp"
 
-using boost::shared_ptr;
 using std::deque;
 using std::max;
+using std::shared_ptr;
+using std::vector;
 
 namespace pv {
 namespace data {
 
-Logic::Logic(unsigned int num_probes) :
+Logic::Logic(unsigned int num_channels) :
 	SignalData(),
-	_num_probes(num_probes)
+	num_channels_(num_channels)
 {
-	assert(_num_probes > 0);
+	assert(num_channels_ > 0);
 }
 
-int Logic::get_num_probes() const
+unsigned int Logic::num_channels() const
 {
-	return _num_probes;
+	return num_channels_;
 }
 
-void Logic::push_snapshot(
-	shared_ptr<LogicSnapshot> &snapshot)
+void Logic::push_segment(shared_ptr<LogicSegment> &segment)
 {
-	_snapshots.push_front(snapshot);
+	segments_.push_front(segment);
 }
 
-deque< shared_ptr<LogicSnapshot> >& Logic::get_snapshots()
+const deque< shared_ptr<LogicSegment> >& Logic::logic_segments() const
 {
-	return _snapshots;
+	return segments_;
+}
+
+vector< shared_ptr<Segment> > Logic::segments() const
+{
+	return vector< shared_ptr<Segment> >(segments_.begin(), segments_.end());
 }
 
 void Logic::clear()
 {
-	_snapshots.clear();
+	segments_.clear();
+
+	samples_cleared();
 }
 
-uint64_t Logic::get_max_sample_count() const
+uint64_t Logic::max_sample_count() const
 {
 	uint64_t l = 0;
-	BOOST_FOREACH(boost::shared_ptr<LogicSnapshot> s, _snapshots) {
+	for (shared_ptr<LogicSegment> s : segments_) {
 		assert(s);
 		l = max(l, s->get_sample_count());
 	}
 	return l;
+}
+
+void Logic::notify_samples_added(QObject* segment, uint64_t start_sample,
+	uint64_t end_sample)
+{
+	samples_added(segment, start_sample, end_sample);
 }
 
 } // namespace data

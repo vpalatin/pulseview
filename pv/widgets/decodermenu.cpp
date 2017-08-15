@@ -14,41 +14,41 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <cassert>
 
 #include <libsigrokdecode/libsigrokdecode.h>
 
-#include "decodermenu.h"
+#include "decodermenu.hpp"
 
 namespace pv {
 namespace widgets {
 
 DecoderMenu::DecoderMenu(QWidget *parent, bool first_level_decoder) :
 	QMenu(parent),
-	_mapper(this)
+	mapper_(this)
 {
 	GSList *l = g_slist_sort(g_slist_copy(
 		(GSList*)srd_decoder_list()), decoder_name_cmp);
-	for(; l; l = l->next)
-	{
+	for (; l; l = l->next) {
 		const srd_decoder *const d = (srd_decoder*)l->data;
 		assert(d);
 
-		const bool have_probes = (d->channels || d->opt_channels) != 0;
-		if (first_level_decoder == have_probes) {
+		const bool have_channels = (d->channels || d->opt_channels) != 0;
+		if (first_level_decoder == have_channels) {
 			QAction *const action =
 				addAction(QString::fromUtf8(d->name));
 			action->setData(qVariantFromValue(l->data));
-			_mapper.setMapping(action, action);
+			mapper_.setMapping(action, action);
 			connect(action, SIGNAL(triggered()),
-				&_mapper, SLOT(map()));
+				&mapper_, SLOT(map()));
 		}
 	}
 	g_slist_free(l);
 
-	connect(&_mapper, SIGNAL(mapped(QObject*)),
+	connect(&mapper_, SIGNAL(mapped(QObject*)),
 		this, SLOT(on_action(QObject*)));
 }
 
@@ -65,8 +65,8 @@ void DecoderMenu::on_action(QObject *action)
 		(srd_decoder*)((QAction*)action)->data().value<void*>();
 	assert(dec);
 
-	decoder_selected(dec);	
+	decoder_selected(dec);
 }
 
-} // widgets
-} // pv
+}  // namespace widgets
+}  // namespace pv

@@ -14,48 +14,48 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
+#include <cassert>
 
 #include <QCheckBox>
 
-#include "bool.h"
+#include "bool.hpp"
 
 namespace pv {
 namespace prop {
 
-Bool::Bool(QString name, Getter getter, Setter setter) :
-	Property(name, getter, setter),
-	_check_box(NULL)
-{
-}
-
-Bool::~Bool()
+Bool::Bool(QString name, QString desc, Getter getter, Setter setter) :
+	Property(name, desc, getter, setter),
+	check_box_(nullptr)
 {
 }
 
 QWidget* Bool::get_widget(QWidget *parent, bool auto_commit)
 {
-	if (_check_box)
-		return _check_box;
+	if (check_box_)
+		return check_box_;
 
-	GVariant *const value = _getter ? _getter() : NULL;
-	if (!value)
-		return NULL;
+	if (!getter_)
+		return nullptr;
 
-	_check_box = new QCheckBox(name(), parent);
-	_check_box->setCheckState(g_variant_get_boolean(value) ?
-		Qt::Checked : Qt::Unchecked);
-	g_variant_unref(value);
+	Glib::VariantBase variant = getter_();
+	if (!variant.gobj())
+		return nullptr;
+
+	bool value = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
+		variant).get();
+
+	check_box_ = new QCheckBox(name(), parent);
+	check_box_->setToolTip(desc());
+	check_box_->setCheckState(value ? Qt::Checked : Qt::Unchecked);
 
 	if (auto_commit)
-		connect(_check_box, SIGNAL(stateChanged(int)),
+		connect(check_box_, SIGNAL(stateChanged(int)),
 			this, SLOT(on_state_changed(int)));
 
-	return _check_box;
+	return check_box_;
 }
 
 bool Bool::labeled_widget() const
@@ -65,13 +65,13 @@ bool Bool::labeled_widget() const
 
 void Bool::commit()
 {
-	assert(_setter);
+	assert(setter_);
 
-	if (!_check_box)
+	if (!check_box_)
 		return;
 
-	_setter(g_variant_new_boolean(
-		_check_box->checkState() == Qt::Checked));
+	setter_(Glib::Variant<bool>::create(
+		check_box_->checkState() == Qt::Checked));
 }
 
 void Bool::on_state_changed(int)
@@ -79,5 +79,5 @@ void Bool::on_state_changed(int)
 	commit();
 }
 
-} // prop
-} // pv
+}  // namespace prop
+}  // namespace pv

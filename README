@@ -14,9 +14,6 @@ Status
 
 PulseView is in a usable state and has had official tarball releases.
 
-However, it is still work in progress. Some basic functionality
-is available and working, but other things are still on the TODO list.
-
 
 Copyright and license
 ---------------------
@@ -47,13 +44,17 @@ is to be interpreted as
  Copyright (C) 2010,2011,2012,2013 Contributor Name
 
 
-Mailing lists
--------------
+Icons authors and licenses
+--------------------------
 
-There are two mailing lists for sigrok/PulseView:
+icons/information.svg: Bobarino
+  https://en.wikipedia.org/wiki/File:Information.svg
+
+
+Mailing list
+------------
 
  https://lists.sourceforge.net/lists/listinfo/sigrok-devel
- https://lists.sourceforge.net/lists/listinfo/sigrok-commits
 
 
 IRC

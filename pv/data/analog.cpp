@@ -14,18 +14,18 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/foreach.hpp>
+#include <cassert>
 
-#include "analog.h"
-#include "analogsnapshot.h"
+#include "analog.hpp"
+#include "analogsegment.hpp"
 
-using boost::shared_ptr;
 using std::deque;
 using std::max;
+using std::shared_ptr;
+using std::vector;
 
 namespace pv {
 namespace data {
@@ -35,29 +35,43 @@ Analog::Analog() :
 {
 }
 
-void Analog::push_snapshot(shared_ptr<AnalogSnapshot> &snapshot)
+void Analog::push_segment(shared_ptr<AnalogSegment> &segment)
 {
-	_snapshots.push_front(snapshot);
+	segments_.push_front(segment);
 }
 
-deque< shared_ptr<AnalogSnapshot> >& Analog::get_snapshots()
+const deque< shared_ptr<AnalogSegment> >& Analog::analog_segments() const
 {
-	return _snapshots;
+	return segments_;
+}
+
+vector< shared_ptr<Segment> > Analog::segments() const
+{
+	return vector< shared_ptr<Segment> >(
+		segments_.begin(), segments_.end());
 }
 
 void Analog::clear()
 {
-	_snapshots.clear();
+	segments_.clear();
+
+	samples_cleared();
 }
 
-uint64_t Analog::get_max_sample_count() const
+uint64_t Analog::max_sample_count() const
 {
 	uint64_t l = 0;
-	BOOST_FOREACH(const boost::shared_ptr<AnalogSnapshot> s, _snapshots) {
+	for (const shared_ptr<AnalogSegment> s : segments_) {
 		assert(s);
 		l = max(l, s->get_sample_count());
 	}
 	return l;
+}
+
+void Analog::notify_samples_added(QObject* segment, uint64_t start_sample,
+	uint64_t end_sample)
+{
+	samples_added(segment, start_sample, end_sample);
 }
 
 } // namespace data

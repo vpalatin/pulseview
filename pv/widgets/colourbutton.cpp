@@ -14,13 +14,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "colourbutton.h"
+#include "colourbutton.hpp"
 
-#include <assert.h>
+#include <cassert>
 
 #include <QApplication>
 #include <QPainter>
@@ -32,78 +31,76 @@ const int ColourButton::SwatchMargin = 7;
 
 ColourButton::ColourButton(int rows, int cols, QWidget *parent) :
 	QPushButton("", parent),
-	_popup(rows, cols, this)
+	popup_(rows, cols, this)
 {
 	connect(this, SIGNAL(clicked(bool)), this, SLOT(on_clicked(bool)));
-	connect(&_popup, SIGNAL(selected(int, int)),
+	connect(&popup_, SIGNAL(selected(int, int)),
 		this, SLOT(on_selected(int, int)));
 }
 
 ColourPopup& ColourButton::popup()
 {
-	return _popup;
+	return popup_;
 }
 
 const QColor& ColourButton::colour() const
 {
-	return _cur_colour;
+	return cur_colour_;
 }
 
 void ColourButton::set_colour(QColor colour)
 {
-	_cur_colour = colour;
+	cur_colour_ = colour;
 
-	const unsigned int rows = _popup.well_array().numRows();
-	const unsigned int cols = _popup.well_array().numCols();
+	const unsigned int rows = popup_.well_array().numRows();
+	const unsigned int cols = popup_.well_array().numCols();
 
 	for (unsigned int r = 0; r < rows; r++)
 		for (unsigned int c = 0; c < cols; c++)
-			if (_popup.well_array().cellBrush(r, c).color() ==
-				colour)
-			{
-				_popup.well_array().setSelected(r, c);
-				_popup.well_array().setCurrent(r, c);
+			if (popup_.well_array().cellBrush(r, c).color() == colour) {
+				popup_.well_array().setSelected(r, c);
+				popup_.well_array().setCurrent(r, c);
 				return;
-			}	
+			}
 }
 
 void ColourButton::set_palette(const QColor *const palette)
 {
 	assert(palette);
 
-	const unsigned int rows = _popup.well_array().numRows();
-	const unsigned int cols = _popup.well_array().numCols();
+	const unsigned int rows = popup_.well_array().numRows();
+	const unsigned int cols = popup_.well_array().numCols();
 
 	for (unsigned int r = 0; r < rows; r++)
 		for (unsigned int c = 0; c < cols; c++)
-			_popup.well_array().setCellBrush(r, c,
+			popup_.well_array().setCellBrush(r, c,
 				QBrush(palette[r * cols + c]));
 }
 
 void ColourButton::on_clicked(bool)
 {
-	_popup.set_position(mapToGlobal(rect().center()), Popup::Bottom);
-	_popup.show();
+	popup_.set_position(mapToGlobal(rect().center()), Popup::Bottom);
+	popup_.show();
 }
 
 void ColourButton::on_selected(int row, int col)
 {
-	_cur_colour = _popup.well_array().cellBrush(row, col).color();
-	selected(_cur_colour);
+	cur_colour_ = popup_.well_array().cellBrush(row, col).color();
+	selected(cur_colour_);
 }
 
-void ColourButton::paintEvent(QPaintEvent *e)
+void ColourButton::paintEvent(QPaintEvent *event)
 {
-	QPushButton::paintEvent(e);
+	QPushButton::paintEvent(event);
 
 	QPainter p(this);
 
 	const QRect r = rect().adjusted(SwatchMargin, SwatchMargin,
 		-SwatchMargin, -SwatchMargin);
 	p.setPen(QApplication::palette().color(QPalette::Dark));
-	p.setBrush(QBrush(_cur_colour));
+	p.setBrush(QBrush(cur_colour_));
 	p.drawRect(r);
 }
 
-} // widgets
-} // pv
+}  // namespace widgets
+}  // namespace pv

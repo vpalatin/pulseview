@@ -14,26 +14,26 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "signalhandler.h"
+#include "signalhandler.hpp"
 
-#include <assert.h>
-#include <signal.h>
-#include <stdlib.h>
+#include <cassert>
+#include <csignal>
+#include <cstdlib>
+
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include <QDebug>
 #include <QSocketNotifier>
 
-int SignalHandler::_sockets[2];
+int SignalHandler::sockets_[2];
 
 bool SignalHandler::prepare_signals()
 {
-	if(socketpair(AF_UNIX, SOCK_STREAM, 0, _sockets) != 0)
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets_) != 0)
 		return false;
 
 	struct sigaction sig_action;
@@ -42,10 +42,10 @@ bool SignalHandler::prepare_signals()
 	sigemptyset(&sig_action.sa_mask);
 	sig_action.sa_flags = SA_RESTART;
 
-	if(sigaction(SIGINT, &sig_action, 0) != 0 ||
-		sigaction(SIGTERM, &sig_action, 0) != 0) {
-		close(_sockets[0]);
-		close(_sockets[1]);
+	if (sigaction(SIGINT, &sig_action, nullptr) != 0 ||
+		sigaction(SIGTERM, &sig_action, nullptr) != 0) {
+		close(sockets_[0]);
+		close(sockets_[1]);
 		return false;
 	}
 
@@ -53,42 +53,39 @@ bool SignalHandler::prepare_signals()
 }
 
 SignalHandler::SignalHandler(QObject* parent) : QObject(parent),
-	_socket_notifier(0)
+	socket_notifier_(nullptr)
 {
-	_socket_notifier = new QSocketNotifier(_sockets[1],
+	socket_notifier_ = new QSocketNotifier(sockets_[1],
 		QSocketNotifier::Read, this);
-	connect(_socket_notifier, SIGNAL(activated(int)),
+	connect(socket_notifier_, SIGNAL(activated(int)),
 		SLOT(on_socket_notifier_activated()));
 }
 
 void SignalHandler::on_socket_notifier_activated()
 {
-	_socket_notifier->setEnabled(false);
+	socket_notifier_->setEnabled(false);
 
 	int sig_number;
-	if(read(_sockets[1], &sig_number, sizeof(int)) !=
-		sizeof(int)) {
+	if (read(sockets_[1], &sig_number, sizeof(int)) != sizeof(int)) {
 		qDebug() << "Failed to catch signal";
 		abort();
 	}
 
-	switch(sig_number)
-	{
+	switch (sig_number) {
 	case SIGINT:
-		emit int_received();
+		Q_EMIT int_received();
 		break;
 	case SIGTERM:
-		emit term_received();
+		Q_EMIT term_received();
 		break;
 	}
 
-	_socket_notifier->setEnabled(true);
+	socket_notifier_->setEnabled(true);
 }
 
 void SignalHandler::handle_signals(int sig_number)
 {
-	if(write(_sockets[0], &sig_number, sizeof(int)) !=
-		sizeof(int)) {
+	if (write(sockets_[0], &sig_number, sizeof(int)) != sizeof(int)) {
 		// Failed to handle signal
 		abort();
 	}
