@@ -2,6 +2,9 @@ pulseview (0.4.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
     + Remove GCC 6 patch now included upstream.
+    + Now requires libsigrok (>= 0.5.0), libsigrokdecode (>= 0.5.0),
+      libglibmm-2.4-dev (>= 2.28.0), qtbase5-dev, qtbase5-dev-tools,
+      libqt5svg5-dev, libboost-test-dev
 
  -- Jonathan McDowell <noodles@earth.li>  Tue, 15 Aug 2017 10:55:17 +0100
 
