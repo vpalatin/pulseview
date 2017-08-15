@@ -1,6 +1,7 @@
 pulseview (0.4.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+    + Remove GCC 6 patch now included upstream.
 
  -- Jonathan McDowell <noodles@earth.li>  Tue, 15 Aug 2017 10:55:17 +0100
 
