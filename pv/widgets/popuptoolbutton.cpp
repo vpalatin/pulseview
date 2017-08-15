@@ -14,45 +14,44 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
+#include <cassert>
 
-#include "popuptoolbutton.h"
+#include "popuptoolbutton.hpp"
 
 namespace pv {
 namespace widgets {
 
 PopupToolButton::PopupToolButton(QWidget *parent) :
 	QToolButton(parent),
-	_popup(NULL)
+	popup_(nullptr)
 {
 	connect(this, SIGNAL(clicked(bool)), this, SLOT(on_clicked(bool)));
 }
 
 Popup* PopupToolButton::popup() const
 {
-	return _popup;
+	return popup_;
 }
 
 void PopupToolButton::set_popup(Popup *popup)
 {
 	assert(popup);
-	_popup = popup;
+	popup_ = popup;
 }
 
 void PopupToolButton::on_clicked(bool)
 {
-	if(!_popup)
+	if (!popup_)
 		return;
 
 	const QRect r = rect();
-	_popup->set_position(mapToGlobal(QPoint((r.left() + r.right()) / 2,
+	popup_->set_position(mapToGlobal(QPoint((r.left() + r.right()) / 2,
 		((r.top() + r.bottom() * 3) / 4))), Popup::Bottom);
-	_popup->show();
+	popup_->show();
 }
 
-} // widgets
-} // pv
+}  // namespace widgets
+}  // namespace pv

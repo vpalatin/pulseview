@@ -14,20 +14,21 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libsigrok/libsigrok.h>
+#include <cassert>
+
+#include <libsigrokcxx/libsigrokcxx.hpp>
 #include <libsigrokdecode/libsigrokdecode.h>
 
-#include "decoder.h"
+#include "decoder.hpp"
 
-#include <pv/view/logicsignal.h>
+#include <pv/data/signalbase.hpp>
 
-using boost::shared_ptr;
 using std::set;
 using std::map;
+using std::shared_ptr;
 using std::string;
 
 namespace pv {
@@ -35,63 +36,75 @@ namespace data {
 namespace decode {
 
 Decoder::Decoder(const srd_decoder *const dec) :
-	_decoder(dec),
-	_shown(true)
+	decoder_(dec),
+	shown_(true),
+	initial_pins_(nullptr)
 {
 }
 
 Decoder::~Decoder()
 {
-	for (map<string, GVariant*>::const_iterator i = _options.begin();
-		i != _options.end(); i++)
-		g_variant_unref((*i).second);
+	for (auto& option : options_)
+		g_variant_unref(option.second);
 }
 
 const srd_decoder* Decoder::decoder() const
 {
-	return _decoder;
+	return decoder_;
 }
 
 bool Decoder::shown() const
 {
-	return _shown;
+	return shown_;
 }
 
 void Decoder::show(bool show)
 {
-	_shown = show;
+	shown_ = show;
 }
 
-const map<const srd_channel*, shared_ptr<view::LogicSignal> >&
+const map<const srd_channel*, shared_ptr<data::SignalBase> >&
 Decoder::channels() const
 {
-	return _probes;
+	return channels_;
 }
 
-void Decoder::set_probes(std::map<const srd_channel*,
-	boost::shared_ptr<view::LogicSignal> > probes)
+void Decoder::set_channels(map<const srd_channel*,
+	shared_ptr<data::SignalBase> > channels)
 {
-	_probes = probes;
+	channels_ = channels;
 }
 
-const std::map<std::string, GVariant*>& Decoder::options() const
+void Decoder::set_initial_pins(GArray *initial_pins)
 {
-	return _options;
+	if (initial_pins_)
+		g_array_free(initial_pins_, TRUE);
+	initial_pins_ = initial_pins;
+}
+
+GArray *Decoder::initial_pins() const
+{
+	return initial_pins_;
+}
+
+const map<string, GVariant*>& Decoder::options() const
+{
+	return options_;
 }
 
 void Decoder::set_option(const char *id, GVariant *value)
 {
 	assert(value);
 	g_variant_ref(value);
-	_options[id] = value;
+	options_[id] = value;
 }
 
-bool Decoder::have_required_probes() const
+bool Decoder::have_required_channels() const
 {
-	for (GSList *l = _decoder->channels; l; l = l->next) {
+	for (GSList *l = decoder_->channels; l; l = l->next) {
 		const srd_channel *const pdch = (const srd_channel*)l->data;
 		assert(pdch);
-		if (_probes.find(pdch) == _probes.end())
+		if (channels_.find(pdch) == channels_.end())
 			return false;
 	}
 
@@ -101,59 +114,52 @@ bool Decoder::have_required_probes() const
 set< shared_ptr<pv::data::Logic> > Decoder::get_data()
 {
 	set< shared_ptr<pv::data::Logic> > data;
-	for(map<const srd_channel*, shared_ptr<view::LogicSignal> >::
-		const_iterator i = _probes.begin();
-		i != _probes.end(); i++)
-	{
-		shared_ptr<view::LogicSignal> signal((*i).second);
-		assert(signal);
-		data.insert(signal->logic_data());
+	for (const auto& channel : channels_) {
+		shared_ptr<data::SignalBase> b(channel.second);
+		assert(b);
+		data.insert(b->logic_data());
 	}
 
 	return data;
 }
 
-srd_decoder_inst* Decoder::create_decoder_inst(srd_session *session, int unit_size) const
+srd_decoder_inst* Decoder::create_decoder_inst(srd_session *session) const
 {
 	GHashTable *const opt_hash = g_hash_table_new_full(g_str_hash,
 		g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
 
-	for (map<string, GVariant*>::const_iterator i = _options.begin();
-		i != _options.end(); i++)
-	{
-		GVariant *const value = (*i).second;
+	for (const auto& option : options_) {
+		GVariant *const value = option.second;
 		g_variant_ref(value);
 		g_hash_table_replace(opt_hash, (void*)g_strdup(
-			(*i).first.c_str()), value);
+			option.first.c_str()), value);
 	}
 
 	srd_decoder_inst *const decoder_inst = srd_inst_new(
-		session, _decoder->id, opt_hash);
+		session, decoder_->id, opt_hash);
 	g_hash_table_destroy(opt_hash);
 
-	if(!decoder_inst)
-		return NULL;
+	if (!decoder_inst)
+		return nullptr;
 
-	// Setup the probes
-	GHashTable *const probes = g_hash_table_new_full(g_str_hash,
+	// Setup the channels
+	GHashTable *const channels = g_hash_table_new_full(g_str_hash,
 		g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
 
-	for(map<const srd_channel*, shared_ptr<view::LogicSignal> >::
-		const_iterator i = _probes.begin();
-		i != _probes.end(); i++)
-	{
-		shared_ptr<view::LogicSignal> signal((*i).second);
-		GVariant *const gvar = g_variant_new_int32(
-			signal->probe()->index);
+	for (const auto& channel : channels_) {
+		shared_ptr<data::SignalBase> b(channel.second);
+		GVariant *const gvar = g_variant_new_int32(b->index());
 		g_variant_ref_sink(gvar);
-		g_hash_table_insert(probes, (*i).first->id, gvar);
+		g_hash_table_insert(channels, channel.first->id, gvar);
 	}
 
-	srd_inst_channel_set_all(decoder_inst, probes, unit_size);
+	srd_inst_channel_set_all(decoder_inst, channels);
+
+	srd_inst_initial_pins_set_all(decoder_inst, initial_pins_);
 
 	return decoder_inst;
 }
 
-} // decode
-} // data
-} // pv
+}  // namespace decode
+}  // namespace data
+}  // namespace pv

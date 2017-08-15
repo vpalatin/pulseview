@@ -14,58 +14,60 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 extern "C" {
 #include <libsigrokdecode/libsigrokdecode.h>
 }
 
+#include <cassert>
 #include <vector>
 
-#include "annotation.h"
+#include "annotation.hpp"
+
+using std::vector;
 
 namespace pv {
 namespace data {
 namespace decode {
 
 Annotation::Annotation(const srd_proto_data *const pdata) :
-	_start_sample(pdata->start_sample),
-	_end_sample(pdata->end_sample)
+	start_sample_(pdata->start_sample),
+	end_sample_(pdata->end_sample)
 {
 	assert(pdata);
 	const srd_proto_data_annotation *const pda =
 		(const srd_proto_data_annotation*)pdata->data;
 	assert(pda);
 
-	_format = pda->ann_format;
+	format_ = pda->ann_class;
 
 	const char *const *annotations = (char**)pda->ann_text;
-	while(*annotations) {
-		_annotations.push_back(QString::fromUtf8(*annotations));
+	while (*annotations) {
+		annotations_.push_back(QString::fromUtf8(*annotations));
 		annotations++;
 	}
 }
 
 uint64_t Annotation::start_sample() const
 {
-	return _start_sample;
+	return start_sample_;
 }
 
 uint64_t Annotation::end_sample() const
 {
-	return _end_sample;
+	return end_sample_;
 }
 
 int Annotation::format() const
 {
-	return _format;
+	return format_;
 }
 
-const std::vector<QString>& Annotation::annotations() const
+const vector<QString>& Annotation::annotations() const
 {
-	return _annotations;
+	return annotations_;
 }
 
 } // namespace decode

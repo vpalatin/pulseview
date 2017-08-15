@@ -14,15 +14,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
+#include <cassert>
 
 #include <QComboBox>
 
-#include "enum.h"
+#include "enum.hpp"
 
 using std::pair;
 using std::vector;
@@ -30,63 +29,54 @@ using std::vector;
 namespace pv {
 namespace prop {
 
-Enum::Enum(QString name,
-	vector<pair<GVariant*, QString> > values,
+Enum::Enum(QString name, QString desc,
+	vector<pair<Glib::VariantBase, QString> > values,
 	Getter getter, Setter setter) :
-	Property(name, getter, setter),
-	_values(values),
-	_selector(NULL)
+	Property(name, desc, getter, setter),
+	values_(values),
+	selector_(nullptr)
 {
-	for (vector< pair<GVariant*, QString> >::const_iterator i =
-		_values.begin(); i != _values.end(); i++)
-		g_variant_ref((*i).first);
-}
-
-Enum::~Enum()
-{
-	for (vector< pair<GVariant*, QString> >::const_iterator i =
-		_values.begin(); i != _values.end(); i++)
-		g_variant_unref((*i).first);
 }
 
 QWidget* Enum::get_widget(QWidget *parent, bool auto_commit)
 {
-	if (_selector)
-		return _selector;
+	if (selector_)
+		return selector_;
 
-	GVariant *const value = _getter ? _getter() : NULL;
-	if (!value)
-		return NULL;
+	if (!getter_)
+		return nullptr;
 
-	_selector = new QComboBox(parent);
-	for (unsigned int i = 0; i < _values.size(); i++) {
-		const pair<GVariant*, QString> &v = _values[i];
-		_selector->addItem(v.second, qVariantFromValue((void*)v.first));
-		if (value && g_variant_equal(v.first, value))
-			_selector->setCurrentIndex(i);
+	Glib::VariantBase variant = getter_();
+	if (!variant.gobj())
+		return nullptr;
+
+	selector_ = new QComboBox(parent);
+	for (unsigned int i = 0; i < values_.size(); i++) {
+		const pair<Glib::VariantBase, QString> &v = values_[i];
+		selector_->addItem(v.second, qVariantFromValue(v.first));
+		if (v.first.equal(variant))
+			selector_->setCurrentIndex(i);
 	}
 
-	g_variant_unref(value);
-
 	if (auto_commit)
-		connect(_selector, SIGNAL(currentIndexChanged(int)),
+		connect(selector_, SIGNAL(currentIndexChanged(int)),
 			this, SLOT(on_current_item_changed(int)));
 
-	return _selector;
+	return selector_;
 }
 
 void Enum::commit()
 {
-	assert(_setter);
+	assert(setter_);
 
-	if (!_selector)
+	if (!selector_)
 		return;
 
-	const int index = _selector->currentIndex();
+	const int index = selector_->currentIndex();
 	if (index < 0)
 		return;
 
-	_setter((GVariant*)_selector->itemData(index).value<void*>());
+	setter_(selector_->itemData(index).value<Glib::VariantBase>());
 }
 
 void Enum::on_current_item_changed(int)
@@ -94,5 +84,5 @@ void Enum::on_current_item_changed(int)
 	commit();
 }
 
-} // prop
-} // pv
+}  // namespace prop
+}  // namespace pv

@@ -38,7 +38,7 @@ Random notes
    glib's g_try_malloc()/g_try_malloc0() was used, use g_free() to free the
    memory. Otherwise use standard free(). Never use the wrong function!
 
- - Never use g_malloc() or g_malloc0(). These functions do not return NULL
+ - Never use g_malloc() or g_malloc0(). These functions do not return nullptr
    if not enough memory is available but rather lead to an exit() or segfault
    instead. This behaviour is not acceptable.
    Use g_try_malloc()/g_try_malloc0() instead and check the return value.
@@ -66,6 +66,9 @@ Random notes
  - In Doxygen comments, put an empty line between the block of @param lines
    and the final @return line. The @param lines themselves (if there is more
    than one) are not separated by empty lines.
+
+ - Use QIcon::fromTheme() for icons that are included in the freedesktop.org
+   icon naming specification. Do NOT use it for all other icons.
 
 
 Release engineering

@@ -14,15 +14,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
+#include <cassert>
 
 #include <QDoubleSpinBox>
 
-#include "double.h"
+#include "double.hpp"
 
 using boost::optional;
 using std::pair;
@@ -31,60 +30,62 @@ namespace pv {
 namespace prop {
 
 Double::Double(QString name,
+	QString desc,
 	int decimals,
 	QString suffix,
 	optional< pair<double, double> > range,
 	optional<double> step,
 	Getter getter,
 	Setter setter) :
-	Property(name, getter, setter),
-	_decimals(decimals),
-	_suffix(suffix),
-	_range(range),
-	_step(step),
-	_spin_box(NULL)
-{
-}
-
-Double::~Double()
+	Property(name, desc, getter, setter),
+	decimals_(decimals),
+	suffix_(suffix),
+	range_(range),
+	step_(step),
+	spin_box_(nullptr)
 {
 }
 
 QWidget* Double::get_widget(QWidget *parent, bool auto_commit)
 {
-	if (_spin_box)
-		return _spin_box;
+	if (spin_box_)
+		return spin_box_;
 
-	GVariant *const value = _getter ? _getter() : NULL;
-	if (!value)
-		return NULL;
+	if (!getter_)
+		return nullptr;
 
-	_spin_box = new QDoubleSpinBox(parent);
-	_spin_box->setDecimals(_decimals);
-	_spin_box->setSuffix(_suffix);
-	if (_range)
-		_spin_box->setRange(_range->first, _range->second);
-	if (_step)
-		_spin_box->setSingleStep(*_step);
+	Glib::VariantBase variant = getter_();
+	if (!variant.gobj())
+		return nullptr;
 
-	_spin_box->setValue(g_variant_get_double(value));
-	g_variant_unref(value);
+	double value = Glib::VariantBase::cast_dynamic<Glib::Variant<double>>(
+		variant).get();
+
+	spin_box_ = new QDoubleSpinBox(parent);
+	spin_box_->setDecimals(decimals_);
+	spin_box_->setSuffix(suffix_);
+	if (range_)
+		spin_box_->setRange(range_->first, range_->second);
+	if (step_)
+		spin_box_->setSingleStep(*step_);
+
+	spin_box_->setValue(value);
 
 	if (auto_commit)
-		connect(_spin_box, SIGNAL(valueChanged(double)),
+		connect(spin_box_, SIGNAL(valueChanged(double)),
 			this, SLOT(on_value_changed(double)));
 
-	return _spin_box;
+	return spin_box_;
 }
 
 void Double::commit()
 {
-	assert(_setter);
+	assert(setter_);
 
-	if (!_spin_box)
+	if (!spin_box_)
 		return;
 
-	_setter(g_variant_new_double(_spin_box->value()));
+	setter_(Glib::Variant<double>::create(spin_box_->value()));
 }
 
 void Double::on_value_changed(double)
@@ -92,5 +93,5 @@ void Double::on_value_changed(double)
 	commit();
 }
 
-} // prop
-} // pv
+}  // namespace prop
+}  // namespace pv

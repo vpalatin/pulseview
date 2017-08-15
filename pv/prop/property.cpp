@@ -14,25 +14,30 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "property.h"
+#include "property.hpp"
 
 namespace pv {
 namespace prop {
 
-Property::Property(QString name, Getter getter, Setter setter) :
-	_getter(getter),
-	_setter(setter),
-	_name(name)
+Property::Property(QString name, QString desc, Getter getter, Setter setter) :
+	getter_(getter),
+	setter_(setter),
+	name_(name),
+	desc_(desc)
 {
 }
 
 const QString& Property::name() const
 {
-	return _name;
+	return name_;
+}
+
+const QString& Property::desc() const
+{
+	return desc_;
 }
 
 bool Property::labeled_widget() const
@@ -40,5 +45,5 @@ bool Property::labeled_widget() const
 	return false;
 }
 
-} // prop
-} // pv
+}  // namespace prop
+}  // namespace pv

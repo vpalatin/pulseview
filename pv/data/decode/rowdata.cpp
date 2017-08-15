@@ -14,11 +14,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "rowdata.h"
+#include "rowdata.hpp"
 
 using std::vector;
 
@@ -26,33 +25,28 @@ namespace pv {
 namespace data {
 namespace decode {
 
-RowData::RowData()
-{
-}
-
 uint64_t RowData::get_max_sample() const
 {
-	if (_annotations.empty())
+	if (annotations_.empty())
 		return 0;
-	return _annotations.back().end_sample();
+	return annotations_.back().end_sample();
 }
 
 void RowData::get_annotation_subset(
 	vector<pv::data::decode::Annotation> &dest,
 	uint64_t start_sample, uint64_t end_sample) const
 {
-	for (vector<Annotation>::const_iterator i = _annotations.begin();
-		i != _annotations.end(); i++)
-		if ((*i).end_sample() > start_sample &&
-			(*i).start_sample() <= end_sample)
-			dest.push_back(*i);
+	for (const auto& annotation : annotations_)
+		if (annotation.end_sample() > start_sample &&
+			annotation.start_sample() <= end_sample)
+			dest.push_back(annotation);
 }
 
 void RowData::push_annotation(const Annotation &a)
 {
-	_annotations.push_back(a);
+	annotations_.push_back(a);
 }
 
-} // decode
-} // data
-} // pv
+}  // namespace decode
+}  // namespace data
+}  // namespace pv

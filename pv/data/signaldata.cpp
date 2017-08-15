@@ -14,36 +14,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "signaldata.h"
+#include "signaldata.hpp"
 
 namespace pv {
 namespace data {
-
-SignalData::SignalData() :
-	_start_time(0),
-	_samplerate(0)
-{
-}
-
-double SignalData::samplerate() const
-{
-	return _samplerate;
-}
-
-void SignalData::set_samplerate(double samplerate)
-{
-	_samplerate = samplerate;
-	clear();
-}
-
-double SignalData::get_start_time() const
-{
-	return _start_time;
-}
 
 } // namespace data
 } // namespace pv
