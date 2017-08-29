@@ -1,4 +1,4 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: pulseview
 Upstream-Contact: <sigrok-devel@lists.sourceforge.net>
 Source: http://sigrok.org/wiki/PulseView
@@ -8,10 +8,10 @@ Comment:
  libsigrokdecode (also GPLv3+), thus making PulseView as a whole GPLv3+.
 
 Files: *
-Copyright: 2012-2014 Joel Holdsworth <joel@airwebreathe.org.uk>
+Copyright: 2012-2015 Joel Holdsworth <joel@airwebreathe.org.uk>
 License: GPL-2.0+
 
-Files: CMakeLists.txt
+Files: CMakeLists.txt test/CMakeLists.txt
 Copyright: 2012 Joel Holdsworth <joel@airwebreathe.org.uk>
            2012-2013 Alexandru Gagniuc <mr.nuke.me@gmail.com>
 License: GPL-2.0+
@@ -20,11 +20,21 @@ Files: config.h.in
 Copyright: 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
 License: GPL-2.0+
 
-Files: signalhandler.cpp signalhandler.h
+Files: signalhandler.cpp signalhandler.hpp
 Copyright: 2013 Adam Reichold
 License: GPL-2.0+
 
-Files: contrib/pulseview_cross.nsi
+Files: android/*.xml android/bundled_libs.xml.in
+       android/loghandler.cpp android/loghandler.hpp
+       android/res/* android/src/*
+Copyright: 2014 Marcus Comstedt <marcus@mc.pp.se>
+License: GPL-3.0+
+
+Files: android/assetreader.cpp android/assetreader.hpp
+Copyright: 2015 Daniel Elstner <daniel.kitta@gmail.com>
+License: GPL-3.0+
+
+Files: contrib/pulseview_cross.nsi.in
 Copyright: 2013-2014 Uwe Hermann <uwe@hermann-uwe.de>
 License: GPL-2.0+
 
@@ -32,17 +42,40 @@ Files: doc/pulseview.1
 Copyright: 2012-2013 Uwe Hermann <uwe@hermann-uwe.de>
 License: GPL-2.0+
 
-Files: test/CMakeLists.txt
-Copyright: 2012 Joel Holdsworth <joel@airwebreathe.org.uk>
-           2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
+Files: pv/application.cpp pv/application.hpp
+Copyright: 2014 Martin Ling <martin-sigrok@earth.li>
 License: GPL-2.0+
 
-Files: pv/widgets/wellarray.cpp pv/widgets/wellarray.h
+Files: pv/strnatcmp.hpp
+Copyright: 2000, 2004 Martin Pool <mbp sourcefrog net>
+License: Zlib
+
+Files: pv/data/segment.cpp pv/data/segment.hpp
+       pv/data/signalbase.cpp pv/data/signalbase.hpp
+       pv/views/trace/standardbar.cpp pv/views/trace/standardbar.hpp
+       pv/views/viewbase.cpp pv/views/viewbase.hpp
+       test/data/segment.cpp
+Copyright: 2012-2015 Joel Holdsworth <joel@airwebreathe.org.uk>
+           2016-2017 Soeren Apel <soeren@apelpie.net>
+License: GPL-2.0+
+
+Files: pv/dialogs/settings.hpp pv/dialogs/settings.cpp
+       pv/globalsettings.cpp pv/globalsettings.hpp
+Copyright: 2017 Soeren Apel <soeren@apelpie.net>
+License: GPL-2.0+
+
+Files: pv/widgets/timestampspinbox.cpp pv/widgets/timestampspinbox.hpp
+       test/test.hpp test/util.cpp test/view/ruler.cpp
+Copyright: 2015 Jens Steinhauser <jens.steinhauser@gmail.com>
+License: GPL-2.0+
+
+Files: pv/widgets/wellarray.cpp pv/widgets/wellarray.hpp
 Copyright: 2013 Digia Plc and/or its subsidiary(-ies)
 License: LGPL-2.1 with Digia Qt LGPL Exception 1.1 or GPL-3
 
 Files: debian/*
 Copyright: 2014 Uwe Hermann <uwe@debian.org>
+           2017 Jonathan McDowell <noodles@earth.li>
 License: GPL-2.0+
 
 License: GPL-2.0+
@@ -116,4 +149,21 @@ License: LGPL-2.1 with Digia Qt LGPL Exception 1.1 or GPL-3
  .
  On Debian systems, the complete text of the GNU Public Licenses can be found
  in `/usr/share/common-licenses/GPL-3`.
+
+License: Zlib
+ This software is provided 'as-is', without any express or implied
+ warranty.  In no event will the authors be held liable for any damages
+ arising from the use of this software.
+ .
+ Permission is granted to anyone to use this software for any purpose,
+ including commercial applications, and to alter it and redistribute it
+ freely, subject to the following restrictions:
+ .
+ 1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software
+    in a product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+ 2. Altered source versions must be plainly marked as such, and must not be
+    misrepresented as being the original software.
+ 3. This notice may not be removed or altered from any source distribution.
 
