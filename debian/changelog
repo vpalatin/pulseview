@@ -7,6 +7,7 @@ pulseview (0.4.0-1) UNRELEASED; urgency=medium
       libqt5svg5-dev, libboost-test-dev
     + Update icon from sigrok-logo-notext.png to pulseview.png
     + Update debian/copyright
+    + Remove Debian specific .desktop in favour of upstream version
   * Move maintenance to Debian Electronics Packaging Team (Closes: #852833)
   * Standards-Version: 4.0.1
     + Change priority to optional
