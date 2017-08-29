@@ -1,7 +1,8 @@
 Source: pulseview
 Section: electronics
 Priority: extra
-Maintainer: Uwe Hermann <uwe@debian.org>
+Maintainer: Debian Electronics Packaging Team <pkg-electronics-devel@lists.alioth.debian.org>
+Uploaders: Jonathan McDowell <noodles@earth.li>
 Build-Depends: debhelper (>= 10), cmake (>= 2.8.6), pkg-config (>= 0.22),
  libglib2.0-dev (>= 2.28.0), libboost-system-dev, libboost-thread-dev,
  libboost-filesystem-dev, libboost-test-dev, libsigrokcxx-dev (>= 0.5.0),
@@ -9,6 +10,8 @@ Build-Depends: debhelper (>= 10), cmake (>= 2.8.6), pkg-config (>= 0.22),
  qtbase5-dev, qtbase5-dev-tools, libqt5svg5-dev
 Standards-Version: 3.9.5
 Homepage: http://sigrok.org/wiki/PulseView
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-electronics/pulseview.git
+Vcs-Git: git://anonscm.debian.org/pkg-electronics/pulseview.git
 
 Package: pulseview
 Architecture: any

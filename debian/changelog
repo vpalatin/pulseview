@@ -7,6 +7,7 @@ pulseview (0.4.0-1) UNRELEASED; urgency=medium
       libqt5svg5-dev, libboost-test-dev
     + Update icon from sigrok-logo-notext.png to pulseview.png
     + Update debian/copyright
+  * Move maintenance to Debian Electronics Packaging Team (Closes: #852833)
 
  -- Jonathan McDowell <noodles@earth.li>  Tue, 15 Aug 2017 10:55:17 +0100
 
