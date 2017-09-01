@@ -1,4 +1,4 @@
-pulseview (0.4.0-1) UNRELEASED; urgency=medium
+pulseview (0.4.0-1) experimental; urgency=medium
 
   * New upstream release.
     + Remove GCC 6 patch now included upstream.
@@ -12,7 +12,7 @@ pulseview (0.4.0-1) UNRELEASED; urgency=medium
   * Standards-Version: 4.0.1
     + Change priority to optional
 
- -- Jonathan McDowell <noodles@earth.li>  Tue, 15 Aug 2017 10:55:17 +0100
+ -- Jonathan McDowell <noodles@earth.li>  Fri, 01 Sep 2017 19:29:47 +0100
 
 pulseview (0.2.0-1.2) unstable; urgency=medium
 
