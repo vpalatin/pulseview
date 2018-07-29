@@ -1,3 +1,9 @@
+pulseview (0.4.0-3) UNRELEASED; urgency=medium
+
+  * Update appropriate bits to point at Salsa instead of Alioth.
+
+ -- Jonathan McDowell <noodles@earth.li>  Mon, 30 Jul 2018 06:34:52 +0800
+
 pulseview (0.4.0-2) unstable; urgency=medium
 
   * Upload to unstable.
