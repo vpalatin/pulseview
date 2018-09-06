@@ -1,9 +1,9 @@
-pulseview (0.4.0-3) UNRELEASED; urgency=medium
+pulseview (0.4.0-3) unstable; urgency=medium
 
   * Update appropriate bits to point at Salsa instead of Alioth.
   * Import fix from upstream for GCC8 FTFBS (Closes: #897838)
 
- -- Jonathan McDowell <noodles@earth.li>  Mon, 30 Jul 2018 06:34:52 +0800
+ -- Jonathan McDowell <noodles@earth.li>  Thu, 06 Sep 2018 15:43:01 +0100
 
 pulseview (0.4.0-2) unstable; urgency=medium
 
