@@ -2,6 +2,7 @@ pulseview (0.4.1-1) UNRELEASED; urgency=medium
 
   * New upstream release.
     + Remove GCC 8 patch now included upstream.
+    + Update debian/copyright.
 
  -- Jonathan McDowell <noodles@earth.li>  Tue, 30 Oct 2018 20:07:31 +0000
 

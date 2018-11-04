@@ -50,6 +50,10 @@ Files: pv/strnatcmp.hpp
 Copyright: 2000, 2004 Martin Pool <mbp sourcefrog net>
 License: Zlib
 
+Files: pv/data/decodesignal.*
+Copyright: 2017 Soeren Apel <soeren@apelpie.net>
+License: GPL-2.0+
+
 Files: pv/data/segment.cpp pv/data/segment.hpp
        pv/data/signalbase.cpp pv/data/signalbase.hpp
        pv/views/trace/standardbar.cpp pv/views/trace/standardbar.hpp
@@ -62,6 +66,10 @@ License: GPL-2.0+
 Files: pv/dialogs/settings.hpp pv/dialogs/settings.cpp
        pv/globalsettings.cpp pv/globalsettings.hpp
 Copyright: 2017 Soeren Apel <soeren@apelpie.net>
+License: GPL-2.0+
+
+Files: pv/logging.*
+Copyright: 2018 Soeren Apel <soeren@apelpie.net>
 License: GPL-2.0+
 
 Files: pv/widgets/timestampspinbox.cpp pv/widgets/timestampspinbox.hpp
