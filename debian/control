@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 10), cmake (>= 2.8.6), pkg-config (>= 0.22),
  libsigrokdecode-dev (>= 0.5.0), libglibmm-2.4-dev (>= 2.28.0),
  qtbase5-dev, qtbase5-dev-tools, libqt5svg5-dev,
  libsigc++-2.0-dev (>= 2.10.0-2.1)
-Standards-Version: 4.0.1
+Standards-Version: 4.2.1
 Rules-Requires-Root: no
 Homepage: http://sigrok.org/wiki/PulseView
 Vcs-Browser: https://salsa.debian.org/electronics-team/sigrok/pulseview
