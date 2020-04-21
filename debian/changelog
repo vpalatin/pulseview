@@ -1,3 +1,9 @@
+pulseview (0.4.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Jonathan McDowell <noodles@earth.li>  Tue, 21 Apr 2020 10:54:30 +0100
+
 pulseview (0.4.1-1) unstable; urgency=medium
 
   * New upstream release.
