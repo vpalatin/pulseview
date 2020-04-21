@@ -3,12 +3,22 @@ Section: electronics
 Priority: optional
 Maintainer: Debian Electronics Packaging Team <pkg-electronics-devel@alioth-lists.debian.net>
 Uploaders: Jonathan McDowell <noodles@earth.li>
-Build-Depends: debhelper (>= 10), cmake (>= 2.8.6), pkg-config (>= 0.22),
- libglib2.0-dev (>= 2.28.0), libboost-system-dev, libboost-thread-dev,
- libboost-filesystem-dev, libboost-test-dev, libsigrokcxx-dev (>= 0.5.0),
- libsigrokdecode-dev (>= 0.5.0), libglibmm-2.4-dev (>= 2.28.0),
- qtbase5-dev, qtbase5-dev-tools, libqt5svg5-dev,
- libsigc++-2.0-dev (>= 2.10.0-2.1)
+Build-Depends: debhelper (>= 10),
+	cmake (>= 2.8.6),
+	libboost-system-dev,
+	libboost-thread-dev,
+	libboost-filesystem-dev,
+	libboost-test-dev,
+	libglib2.0-dev (>= 2.28.0),
+	libglibmm-2.4-dev (>= 2.28.0),
+	libsigrokcxx-dev (>= 0.5.0),
+	libsigrokdecode-dev (>= 0.5.0),
+	libqt5svg5-dev,
+	libsigc++-2.0-dev (>= 2.10.0-2.1),
+	pkg-config (>= 0.22),
+	qtbase5-dev,
+	qtbase5-dev-tools,
+	qttools5-dev
 Standards-Version: 4.2.1
 Rules-Requires-Root: no
 Homepage: http://sigrok.org/wiki/PulseView
