@@ -2,6 +2,7 @@ pulseview (0.4.2-1) UNRELEASED; urgency=medium
 
   * New upstream release.
     + Add build-dep on qttools5-dev.
+    + Update debian/copyright.
 
  -- Jonathan McDowell <noodles@earth.li>  Tue, 21 Apr 2020 10:54:30 +0100
 
