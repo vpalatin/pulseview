@@ -32,6 +32,7 @@ namespace data {
 
 Logic::Logic(unsigned int num_channels) :
 	SignalData(),
+	samplerate_(1),  // Default is 1 Hz to prevent division-by-zero errors
 	num_channels_(num_channels)
 {
 	assert(num_channels_ > 0);
@@ -48,6 +49,11 @@ void Logic::push_segment(shared_ptr<LogicSegment> &segment)
 }
 
 const deque< shared_ptr<LogicSegment> >& Logic::logic_segments() const
+{
+	return segments_;
+}
+
+deque< shared_ptr<LogicSegment> >& Logic::logic_segments()
 {
 	return segments_;
 }
@@ -69,12 +75,14 @@ void Logic::clear()
 	samples_cleared();
 }
 
+void Logic::set_samplerate(double value)
+{
+	samplerate_ = value;
+}
+
 double Logic::get_samplerate() const
 {
-	if (segments_.empty())
-		return 1.0;
-
-	return segments_.front()->samplerate();
+	return samplerate_;
 }
 
 uint64_t Logic::max_sample_count() const
@@ -87,7 +95,7 @@ uint64_t Logic::max_sample_count() const
 	return l;
 }
 
-void Logic::notify_samples_added(QObject* segment, uint64_t start_sample,
+void Logic::notify_samples_added(shared_ptr<Segment> segment, uint64_t start_sample,
 	uint64_t end_sample)
 {
 	samples_added(segment, start_sample, end_sample);

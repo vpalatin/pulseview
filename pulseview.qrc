@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
 	<file>icons/add-decoder.svg</file>
+	<file>icons/add-math-signal.svg</file>
 	<file>icons/application-exit.png</file>
 	<file>icons/channels.svg</file>
 	<file>icons/decoder-delete.svg</file>
@@ -9,6 +10,7 @@
 	<file>icons/document-new.png</file>
 	<file>icons/document-open.png</file>
 	<file>icons/document-save-as.png</file>
+	<file>icons/math.svg</file>
 	<file>icons/edit-paste.svg</file>
 	<file>icons/help-browser.png</file>
 	<file>icons/information.svg</file>

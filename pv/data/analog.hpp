@@ -26,6 +26,7 @@
 #include <memory>
 
 #include <QObject>
+#include "pv/data/segment.hpp"
 
 using std::deque;
 using std::shared_ptr;
@@ -53,11 +54,13 @@ public:
 
 	void clear();
 
+	void set_samplerate(double value);
+
 	double get_samplerate() const;
 
 	uint64_t max_sample_count() const;
 
-	void notify_samples_added(QObject* segment, uint64_t start_sample,
+	void notify_samples_added(shared_ptr<Segment> segment, uint64_t start_sample,
 		uint64_t end_sample);
 
 	void notify_min_max_changed(float min, float max);
@@ -65,12 +68,18 @@ public:
 Q_SIGNALS:
 	void samples_cleared();
 
-	void samples_added(QObject* segment, uint64_t start_sample,
+	void samples_added(SharedPtrToSegment segment, uint64_t start_sample,
 		uint64_t end_sample);
 
 	void min_max_changed(float min, float max);
 
+	void segment_completed();
+
+private Q_SLOTS:
+	void on_segment_completed();
+
 private:
+	double samplerate_;
 	deque< shared_ptr<AnalogSegment> > segments_;
 };
 

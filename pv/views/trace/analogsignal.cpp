@@ -65,17 +65,11 @@ using std::vector;
 using pv::data::LogicSegment;
 using pv::data::SignalBase;
 using pv::util::SIPrefix;
+using pv::util::determine_value_prefix;
 
 namespace pv {
 namespace views {
 namespace trace {
-
-const QColor AnalogSignal::SignalColors[4] = {
-	QColor(0xC4, 0xA0, 0x00),	// Yellow
-	QColor(0x87, 0x20, 0x7A),	// Magenta
-	QColor(0x20, 0x4A, 0x87),	// Blue
-	QColor(0x4E, 0x9A, 0x06)	// Green
-};
 
 const QPen AnalogSignal::AxisPen(QColor(0, 0, 0, 30 * 256 / 100), 2);
 const QColor AnalogSignal::GridMajorColor = QColor(0, 0, 0, 40 * 256 / 100);
@@ -134,7 +128,6 @@ AnalogSignal::AnalogSignal(
 		settings.value(GlobalSettings::Key_View_ConversionThresholdDispMode).toInt();
 	div_height_ = settings.value(GlobalSettings::Key_View_DefaultDivHeight).toInt();
 
-	base_->set_color(SignalColors[base_->index() % countof(SignalColors)]);
 	update_scale();
 }
 
@@ -264,32 +257,36 @@ void AnalogSignal::paint_mid(QPainter &p, ViewItemPaintParams &pp)
 		paint_grid(p, y, pp.left(), pp.right());
 
 		shared_ptr<pv::data::AnalogSegment> segment = get_analog_segment_to_paint();
-		if (!segment || (segment->get_sample_count() == 0))
-			return;
 
-		const double pixels_offset = pp.pixels_offset();
-		const double samplerate = max(1.0, segment->samplerate());
-		const pv::util::Timestamp& start_time = segment->start_time();
-		const int64_t last_sample = (int64_t)segment->get_sample_count() - 1;
-		const double samples_per_pixel = samplerate * pp.scale();
-		const pv::util::Timestamp start = samplerate * (pp.offset() - start_time);
-		const pv::util::Timestamp end = start + samples_per_pixel * pp.width();
+		if (segment && (segment->get_sample_count() > 0)) {
+			const double pixels_offset = pp.pixels_offset();
+			const double samplerate = max(1.0, segment->samplerate());
+			const pv::util::Timestamp& start_time = segment->start_time();
+			const int64_t last_sample = (int64_t)segment->get_sample_count() - 1;
+			const double samples_per_pixel = samplerate * pp.scale();
+			const pv::util::Timestamp start = samplerate * (pp.offset() - start_time);
+			const pv::util::Timestamp end = start + samples_per_pixel * pp.width();
 
-		const int64_t start_sample = min(max(floor(start).convert_to<int64_t>(),
-			(int64_t)0), last_sample);
-		const int64_t end_sample = min(max((ceil(end) + 1).convert_to<int64_t>(),
-			(int64_t)0), last_sample);
+			const int64_t start_sample = min(max(floor(start).convert_to<int64_t>(),
+				(int64_t)0), last_sample);
+			const int64_t end_sample = min(max((ceil(end) + 1).convert_to<int64_t>(),
+				(int64_t)0), last_sample);
 
-		if (samples_per_pixel < EnvelopeThreshold)
-			paint_trace(p, segment, y, pp.left(), start_sample, end_sample,
-				pixels_offset, samples_per_pixel);
-		else
-			paint_envelope(p, segment, y, pp.left(), start_sample, end_sample,
-				pixels_offset, samples_per_pixel);
+			if (samples_per_pixel < EnvelopeThreshold)
+				paint_trace(p, segment, y, pp.left(), start_sample, end_sample,
+					pixels_offset, samples_per_pixel);
+			else
+				paint_envelope(p, segment, y, pp.left(), start_sample, end_sample,
+					pixels_offset, samples_per_pixel);
+		}
 	}
 
 	if ((display_type_ == DisplayConverted) || (display_type_ == DisplayBoth))
 		paint_logic_mid(p, pp);
+
+	const QString err = base_->get_error_message();
+	if (!err.isEmpty())
+		paint_error(p, pp);
 }
 
 void AnalogSignal::paint_fore(QPainter &p, ViewItemPaintParams &pp)
@@ -302,12 +299,18 @@ void AnalogSignal::paint_fore(QPainter &p, ViewItemPaintParams &pp)
 
 		QString infotext;
 
+		SIPrefix prefix;
+		if (fabs(signal_max_) > fabs(signal_min_))
+			prefix = determine_value_prefix(fabs(signal_max_));
+		else
+			prefix = determine_value_prefix(fabs(signal_min_));
+
 		// Show the info section on the right side of the trace, including
 		// the value at the hover point when the hover marker is enabled
 		// and we have corresponding data available
 		if (show_hover_marker_ && !std::isnan(value_at_hover_pos_)) {
 			infotext = QString("[%1] %2 V/div")
-				.arg(format_value_si(value_at_hover_pos_, SIPrefix::unspecified, 2, "V", false))
+				.arg(format_value_si(value_at_hover_pos_, prefix, 3, "V", false))
 				.arg(resolution_);
 		} else
 			infotext = QString("%1 V/div").arg(resolution_);
@@ -852,7 +855,6 @@ void AnalogSignal::perform_autoranging(bool keep_divs, bool force_update)
 	if (segments.empty())
 		return;
 
-	double signal_min_ = 0, signal_max_ = 0;
 	double min = 0, max = 0;
 
 	for (const shared_ptr<pv::data::AnalogSegment>& segment : segments) {
@@ -977,22 +979,20 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	// Add the standard options
 	Signal::populate_popup_form(parent, form);
 
-	QFormLayout *const layout = new QFormLayout;
-
 	// Add div-related settings
 	pvdiv_sb_ = new QSpinBox(parent);
 	pvdiv_sb_->setRange(0, MaximumVDivs);
 	pvdiv_sb_->setValue(pos_vdivs_);
 	connect(pvdiv_sb_, SIGNAL(valueChanged(int)),
 		this, SLOT(on_pos_vdivs_changed(int)));
-	layout->addRow(tr("Number of pos vertical divs"), pvdiv_sb_);
+	form->addRow(tr("Number of pos vertical divs"), pvdiv_sb_);
 
 	nvdiv_sb_ = new QSpinBox(parent);
 	nvdiv_sb_->setRange(0, MaximumVDivs);
 	nvdiv_sb_->setValue(neg_vdivs_);
 	connect(nvdiv_sb_, SIGNAL(valueChanged(int)),
 		this, SLOT(on_neg_vdivs_changed(int)));
-	layout->addRow(tr("Number of neg vertical divs"), nvdiv_sb_);
+	form->addRow(tr("Number of neg vertical divs"), nvdiv_sb_);
 
 	div_height_sb_ = new QSpinBox(parent);
 	div_height_sb_->setRange(20, 1000);
@@ -1001,7 +1001,7 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	div_height_sb_->setValue(div_height_);
 	connect(div_height_sb_, SIGNAL(valueChanged(int)),
 		this, SLOT(on_div_height_changed(int)));
-	layout->addRow(tr("Div height"), div_height_sb_);
+	form->addRow(tr("Div height"), div_height_sb_);
 
 	// Add the vertical resolution
 	resolution_cb_ = new QComboBox(parent);
@@ -1022,7 +1022,7 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	vdiv_layout->addWidget(resolution_cb_, 0, 0);
 	vdiv_layout->addWidget(vdiv_unit, 0, 1);
 
-	layout->addRow(tr("Vertical resolution"), vdiv_layout);
+	form->addRow(tr("Vertical resolution"), vdiv_layout);
 
 	// Add the autoranging checkbox
 	QCheckBox* autoranging_cb = new QCheckBox();
@@ -1031,7 +1031,7 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	connect(autoranging_cb, SIGNAL(stateChanged(int)),
 		this, SLOT(on_autoranging_changed(int)));
 
-	layout->addRow(tr("Autoranging"), autoranging_cb);
+	form->addRow(tr("Autoranging"), autoranging_cb);
 
 	// Add the conversion type dropdown
 	conversion_cb_ = new QComboBox();
@@ -1046,7 +1046,7 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	cur_idx = conversion_cb_->findData(QVariant(base_->get_conversion_type()));
 	conversion_cb_->setCurrentIndex(cur_idx);
 
-	layout->addRow(tr("Conversion"), conversion_cb_);
+	form->addRow(tr("Conversion"), conversion_cb_);
 
 	connect(conversion_cb_, SIGNAL(currentIndexChanged(int)),
 		this, SLOT(on_conversion_changed(int)));
@@ -1055,7 +1055,7 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
     conv_threshold_cb_ = new QComboBox();
     conv_threshold_cb_->setEditable(true);
 
-    layout->addRow(tr("Conversion threshold(s)"), conv_threshold_cb_);
+    form->addRow(tr("Conversion threshold(s)"), conv_threshold_cb_);
 
     connect(conv_threshold_cb_, SIGNAL(currentIndexChanged(int)),
             this, SLOT(on_conv_threshold_changed(int)));
@@ -1072,15 +1072,13 @@ void AnalogSignal::populate_popup_form(QWidget *parent, QFormLayout *form)
 	cur_idx = display_type_cb_->findData(QVariant(display_type_));
 	display_type_cb_->setCurrentIndex(cur_idx);
 
-	layout->addRow(tr("Show traces for"), display_type_cb_);
+	form->addRow(tr("Show traces for"), display_type_cb_);
 
 	connect(display_type_cb_, SIGNAL(currentIndexChanged(int)),
 		this, SLOT(on_display_type_changed(int)));
 
 	// Update the conversion widget contents and states
 	update_conversion_widgets();
-
-	form->addRow(layout);
 }
 
 void AnalogSignal::hover_point_changed(const QPoint &hp)
@@ -1126,11 +1124,12 @@ void AnalogSignal::on_setting_changed(const QString &key, const QVariant &value)
 
 void AnalogSignal::on_min_max_changed(float min, float max)
 {
-	(void)min;
-	(void)max;
-
 	if (autoranging_)
 		perform_autoranging(false, false);
+	else {
+		if (min < signal_min_) signal_min_ = min;
+		if (max > signal_max_) signal_max_ = max;
+	}
 }
 
 void AnalogSignal::on_pos_vdivs_changed(int vdivs)

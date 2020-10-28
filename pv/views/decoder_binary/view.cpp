@@ -90,7 +90,7 @@ View::View(Session &session, bool is_main_view, QMainWindow *parent) :
 	toolbar->addWidget(save_button_);
 
 	// Add format types
-	format_selector_->addItem(tr("Hexdump"), qVariantFromValue(QString("text/hexdump")));
+	format_selector_->addItem(tr("Hexdump"), QVariant(QString("text/hexdump")));
 
 	// Add widget stack
 	root_layout->addWidget(stacked_widget_);
@@ -120,7 +120,7 @@ View::View(Session &session, bool is_main_view, QMainWindow *parent) :
 
 	for (int i = 0; i < SaveTypeCount; i++) {
 		QAction *const action =	save_menu->addAction(tr(SaveTypeNames[i]));
-		action->setData(qVariantFromValue(i));
+		action->setData(QVariant::fromValue(i));
 	}
 
 	save_button_->setMenu(save_menu);
@@ -206,14 +206,14 @@ void View::remove_decode_signal(shared_ptr<data::DecodeSignal> signal)
 
 void View::save_settings(QSettings &settings) const
 {
-	(void)settings;
+	ViewBase::save_settings(settings);
 }
 
 void View::restore_settings(QSettings &settings)
 {
 	// Note: It is assumed that this function is only called once,
 	// immediately after restoring a previous session.
-	(void)settings;
+	ViewBase::restore_settings(settings);
 }
 
 void View::reset_data()
@@ -371,8 +371,9 @@ void View::on_selected_class_changed(int index)
 {
 	bin_class_id_ = class_selector_->itemData(index).value<uint32_t>();
 
-	binary_data_exists_ =
-		signal_->get_binary_data_chunk_count(current_segment_, decoder_, bin_class_id_);
+	binary_data_exists_ = (signal_) ?
+		signal_->get_binary_data_chunk_count(current_segment_, decoder_, bin_class_id_) :
+		false;
 
 	update_data();
 }

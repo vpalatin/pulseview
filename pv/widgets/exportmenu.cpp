@@ -63,14 +63,14 @@ ExportMenu::ExportMenu(QWidget *parent, shared_ptr<Context> context,
 	const map<string, shared_ptr<OutputFormat> > formats =
 		context->output_formats();
 
-	for (const pair<string, shared_ptr<OutputFormat> > &f : formats) {
+	for (const pair<const string, shared_ptr<OutputFormat> > &f : formats) {
 		if (f.first == "srzip")
 			continue;
 
 		assert(f.second);
 		QAction *const action =	addAction(tr("Export %1...")
 			.arg(QString::fromStdString(f.second->description())));
-		action->setData(qVariantFromValue((void*)f.second.get()));
+		action->setData(QVariant::fromValue((void*)f.second.get()));
 		mapper_.setMapping(action, action);
 		connect(action, SIGNAL(triggered()), &mapper_, SLOT(map()));
 	}

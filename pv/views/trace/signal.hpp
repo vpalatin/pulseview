@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEWS_TRACEVIEW_SIGNAL_HPP
-#define PULSEVIEW_PV_VIEWS_TRACEVIEW_SIGNAL_HPP
+#ifndef PULSEVIEW_PV_VIEWS_TRACE_SIGNAL_HPP
+#define PULSEVIEW_PV_VIEWS_TRACE_SIGNAL_HPP
 
 #include <memory>
 
@@ -62,7 +62,7 @@ class Signal : public Trace, public ViewItemOwner
 	Q_OBJECT
 
 protected:
-	Signal(pv::Session &session, shared_ptr<data::SignalBase> channel);
+	Signal(pv::Session &session, shared_ptr<data::SignalBase> signal);
 
 public:
 	/**
@@ -119,4 +119,4 @@ protected:
 } // namespace views
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEWS_TRACEVIEW_SIGNAL_HPP
+#endif // PULSEVIEW_PV_VIEWS_TRACE_SIGNAL_HPP

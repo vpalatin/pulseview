@@ -21,6 +21,7 @@
 #define PULSEVIEW_PV_DATA_LOGIC_HPP
 
 #include "signaldata.hpp"
+#include "segment.hpp"
 
 #include <deque>
 
@@ -47,6 +48,7 @@ public:
 	void push_segment(shared_ptr<LogicSegment> &segment);
 
 	const deque< shared_ptr<LogicSegment> >& logic_segments() const;
+	deque< shared_ptr<LogicSegment> >& logic_segments();
 
 	vector< shared_ptr<Segment> > segments() const;
 
@@ -54,20 +56,23 @@ public:
 
 	void clear();
 
+	void set_samplerate(double value);
+
 	double get_samplerate() const;
 
 	uint64_t max_sample_count() const;
 
-	void notify_samples_added(QObject* segment, uint64_t start_sample,
+	void notify_samples_added(shared_ptr<Segment> segment, uint64_t start_sample,
 		uint64_t end_sample);
 
 Q_SIGNALS:
 	void samples_cleared();
 
-	void samples_added(QObject* segment, uint64_t start_sample,
+	void samples_added(SharedPtrToSegment segment, uint64_t start_sample,
 		uint64_t end_sample);
 
 private:
+	double samplerate_;
 	const unsigned int num_channels_;
 	deque< shared_ptr<LogicSegment> > segments_;
 };

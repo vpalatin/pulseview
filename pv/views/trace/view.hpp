@@ -17,14 +17,14 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEWS_TRACEVIEW_VIEW_HPP
-#define PULSEVIEW_PV_VIEWS_TRACEVIEW_VIEW_HPP
+#ifndef PULSEVIEW_PV_VIEWS_TRACE_VIEW_HPP
+#define PULSEVIEW_PV_VIEWS_TRACE_VIEW_HPP
 
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <set>
-#include <unordered_map>
 #include <vector>
 
 #include <QAbstractScrollArea>
@@ -43,7 +43,7 @@
 #include "tracetreeitemowner.hpp"
 
 using std::list;
-using std::unordered_map;
+using std::map;
 using std::set;
 using std::shared_ptr;
 using std::vector;
@@ -122,9 +122,9 @@ public:
 
 	shared_ptr<Signal> get_signal_by_signalbase(shared_ptr<data::SignalBase> base) const;
 
-	virtual void clear_signals();
-
-	void add_signal(const shared_ptr<Signal> signal);
+	virtual void clear_signalbases();
+	virtual void add_signalbase(const shared_ptr<data::SignalBase> signalbase);
+	virtual void remove_signalbase(const shared_ptr<data::SignalBase> signalbase);
 
 #ifdef ENABLE_DECODE
 	virtual void clear_decode_signals();
@@ -133,6 +133,8 @@ public:
 
 	virtual void remove_decode_signal(shared_ptr<data::DecodeSignal> signal);
 #endif
+
+	void remove_trace(shared_ptr<Trace> trace);
 
 	shared_ptr<Signal> get_signal_under_mouse_cursor() const;
 
@@ -154,7 +156,6 @@ public:
 	const Ruler* ruler() const;
 
 	virtual void save_settings(QSettings &settings) const;
-
 	virtual void restore_settings(QSettings &settings);
 
 	/**
@@ -253,6 +254,8 @@ public:
 	void zoom(double steps, int offset);
 
 	void zoom_fit(bool gui_state);
+
+	virtual void focus_on_range(uint64_t start_sample, uint64_t end_sample);
 
 	/**
 	 * Sets the scale and offset.
@@ -390,9 +393,7 @@ private:
 	void adjust_top_margin();
 
 	void update_scroll();
-
 	void reset_scroll();
-
 	void set_scroll_default();
 
 	void determine_if_header_was_shrunk();
@@ -403,14 +404,12 @@ private:
 
 	TraceTreeItemOwner* find_prevalent_trace_group(
 		const shared_ptr<sigrok::ChannelGroup> &group,
-		const unordered_map<shared_ptr<data::SignalBase>,
-			shared_ptr<Signal> > &signal_map);
+		const map<shared_ptr<data::SignalBase>, shared_ptr<Signal> > &signal_map);
 
 	static vector< shared_ptr<Trace> >
 		extract_new_traces_for_channels(
 		const vector< shared_ptr<sigrok::Channel> > &channels,
-		const unordered_map<shared_ptr<data::SignalBase>,
-			shared_ptr<Signal> > &signal_map,
+		const map<shared_ptr<data::SignalBase>, shared_ptr<Signal> > &signal_map,
 		set< shared_ptr<Trace> > &add_list);
 
 	void determine_time_unit();
@@ -421,6 +420,7 @@ private:
 
 	void resizeEvent(QResizeEvent *event);
 
+	void update_view_range_metaobject() const;
 	void update_hover_point();
 
 public:
@@ -510,6 +510,7 @@ private:
 	QShortcut *grab_ruler_left_shortcut_, *grab_ruler_right_shortcut_;
 	QShortcut *cancel_grab_shortcut_;
 
+	mutable mutex signal_mutex_;
 	vector< shared_ptr<Signal> > signals_;
 
 #ifdef ENABLE_DECODE
@@ -534,7 +535,7 @@ private:
 	bool custom_zero_offset_set_;
 
 	bool updating_scroll_;
-	bool settings_restored_;
+	bool restoring_state_;
 	bool header_was_shrunk_;
 
 	bool sticky_scrolling_;
@@ -567,22 +568,16 @@ private:
 	// This is true when the defaults couldn't be set due to insufficient info
 	bool scroll_needs_defaults_;
 
-	// A nonzero value indicates the v offset to restore. See View::resizeEvent()
+	// The v offset to restore. See View::eventFilter()
 	int saved_v_offset_;
 
 	// These are used to determine whether the view was altered after acq started
 	double scale_at_acq_start_;
 	pv::util::Timestamp offset_at_acq_start_;
-
-	// Used to suppress performing a "zoom to fit" when the session stops. This
-	// is needed when the view's settings are restored before acquisition ends.
-	// In that case we want to keep the restored settings, not have a "zoom to fit"
-	// mess them up.
-	bool suppress_zoom_to_fit_after_acq_;
 };
 
 } // namespace trace
 } // namespace views
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEWS_TRACEVIEW_VIEW_HPP
+#endif // PULSEVIEW_PV_VIEWS_TRACE_VIEW_HPP

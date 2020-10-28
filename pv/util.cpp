@@ -110,24 +110,30 @@ static QTextStream& operator<<(QTextStream& stream, const Timestamp& t)
 	return stream << QString::fromStdString(str);
 }
 
+SIPrefix determine_value_prefix(double v)
+{
+	SIPrefix prefix;
+
+	if (v == 0) {
+		prefix = SIPrefix::none;
+	} else {
+		int exp = exponent(SIPrefix::yotta);
+		prefix = SIPrefix::yocto;
+		while ((fabs(v) * pow(10, exp)) > 999 &&
+				prefix < SIPrefix::yotta) {
+			prefix = successor(prefix);
+			exp -= 3;
+		}
+	}
+
+	return prefix;
+}
+
 QString format_time_si(const Timestamp& v, SIPrefix prefix,
 	unsigned int precision, QString unit, bool sign)
 {
-	if (prefix == SIPrefix::unspecified) {
-		// No prefix given, calculate it
-
-		if (v.is_zero()) {
-			prefix = SIPrefix::none;
-		} else {
-			int exp = exponent(SIPrefix::yotta);
-			prefix = SIPrefix::yocto;
-			while ((fabs(v) * pow(Timestamp(10), exp)) > 999 &&
-					prefix < SIPrefix::yotta) {
-				prefix = successor(prefix);
-				exp -= 3;
-			}
-		}
-	}
+	if (prefix == SIPrefix::unspecified)
+		prefix = determine_value_prefix(v.convert_to<double>());
 
 	assert(prefix >= SIPrefix::yocto);
 	assert(prefix <= SIPrefix::yotta);
@@ -137,7 +143,7 @@ QString format_time_si(const Timestamp& v, SIPrefix prefix,
 	QString s;
 	QTextStream ts(&s);
 	if (sign && !v.is_zero())
-		ts << forcesign;
+		ts.setNumberFlags(ts.numberFlags() | QTextStream::ForceSign);
 	ts << qSetRealNumberPrecision(precision) << (v * multiplier);
 	ts << ' ' << prefix << unit;
 
@@ -148,19 +154,7 @@ QString format_value_si(double v, SIPrefix prefix, unsigned precision,
 	QString unit, bool sign)
 {
 	if (prefix == SIPrefix::unspecified) {
-		// No prefix given, calculate it
-
-		if (v == 0) {
-			prefix = SIPrefix::none;
-		} else {
-			int exp = exponent(SIPrefix::yotta);
-			prefix = SIPrefix::yocto;
-			while ((fabs(v) * pow(Timestamp(10), exp)) > 999 &&
-					prefix < SIPrefix::yotta) {
-				prefix = successor(prefix);
-				exp -= 3;
-			}
-		}
+		prefix = determine_value_prefix(v);
 
 		const int prefix_order = -exponent(prefix);
 		precision = (prefix >= SIPrefix::none) ? max((int)(precision + prefix_order), 0) :
@@ -175,7 +169,7 @@ QString format_value_si(double v, SIPrefix prefix, unsigned precision,
 	QString s;
 	QTextStream ts(&s);
 	if (sign && (v != 0))
-		ts << forcesign;
+		ts.setNumberFlags(ts.numberFlags() | QTextStream::ForceSign);
 	ts.setRealNumberNotation(QTextStream::FixedNotation);
 	ts.setRealNumberPrecision(precision);
 	ts << (v * multiplier) << ' ' << prefix << unit;
@@ -283,6 +277,23 @@ vector<string> split_string(string text, string separator)
 	result.push_back(text);
 
 	return result;
+}
+
+/**
+ * Return the width of a string in a given font.
+ *
+ * @param[in] metric metrics of the font
+ * @param[in] string the string whose width should be determined
+ *
+ * @return width of the string in pixels
+ */
+std::streamsize text_width(const QFontMetrics &metric, const QString &string)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
+	return metric.horizontalAdvance(string);
+#else
+	return metric.width(string);
+#endif
 }
 
 } // namespace util

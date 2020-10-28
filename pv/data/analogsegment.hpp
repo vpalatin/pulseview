@@ -27,6 +27,7 @@
 
 #include <QObject>
 
+using std::enable_shared_from_this;
 using std::pair;
 
 namespace AnalogSegmentTest {
@@ -38,7 +39,7 @@ namespace data {
 
 class Analog;
 
-class AnalogSegment : public Segment
+class AnalogSegment : public Segment, public enable_shared_from_this<Segment>
 {
 	Q_OBJECT
 
@@ -80,6 +81,7 @@ public:
 	void append_interleaved_samples(const float *data,
 		size_t sample_count, size_t stride);
 
+	float get_sample(int64_t sample_num) const;
 	void get_samples(int64_t start_sample, int64_t end_sample, float* dest) const;
 
 	const pair<float, float> get_min_max() const;

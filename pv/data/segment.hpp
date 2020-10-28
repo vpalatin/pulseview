@@ -23,14 +23,16 @@
 
 #include "pv/util.hpp"
 
+#include <atomic>
 #include <mutex>
 #include <thread>
-#include <vector>
+#include <deque>
 
 #include <QObject>
 
+using std::atomic;
 using std::recursive_mutex;
-using std::vector;
+using std::deque;
 
 namespace SegmentTest {
 struct SmallSize8Single;
@@ -81,9 +83,13 @@ public:
 
 	void free_unused_memory();
 
+Q_SIGNALS:
+	void completed();
+
 protected:
 	void append_single_sample(void *data);
 	void append_samples(void *data, uint64_t samples);
+	const uint8_t* get_raw_sample(uint64_t sample_num) const;
 	void get_raw_samples(uint64_t start, uint64_t count, uint8_t *dest) const;
 
 	SegmentDataIterator* begin_sample_iteration(uint64_t start);
@@ -94,10 +100,10 @@ protected:
 
 	uint32_t segment_id_;
 	mutable recursive_mutex mutex_;
-	vector<uint8_t*> data_chunks_;
+	deque<uint8_t*> data_chunks_;
 	uint8_t* current_chunk_;
 	uint64_t used_samples_, unused_samples_;
-	uint64_t sample_count_;
+	atomic<uint64_t> sample_count_;
 	pv::util::Timestamp start_time_;
 	double samplerate_;
 	uint64_t chunk_size_;
@@ -120,5 +126,9 @@ protected:
 
 } // namespace data
 } // namespace pv
+
+typedef std::shared_ptr<pv::data::Segment> SharedPtrToSegment;
+
+Q_DECLARE_METATYPE(SharedPtrToSegment);
 
 #endif // PULSEVIEW_PV_DATA_SEGMENT_HPP

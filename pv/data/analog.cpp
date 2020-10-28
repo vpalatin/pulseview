@@ -31,13 +31,16 @@ namespace pv {
 namespace data {
 
 Analog::Analog() :
-	SignalData()
+	SignalData(),
+	samplerate_(1)  // Default is 1 Hz to prevent division-by-zero errors
 {
 }
 
 void Analog::push_segment(shared_ptr<AnalogSegment> &segment)
 {
 	segments_.push_back(segment);
+
+	connect(segment.get(), SIGNAL(completed()), this, SLOT(on_segment_completed()));
 }
 
 const deque< shared_ptr<AnalogSegment> >& Analog::analog_segments() const
@@ -63,12 +66,14 @@ void Analog::clear()
 	samples_cleared();
 }
 
+void Analog::set_samplerate(double value)
+{
+	samplerate_ = value;
+}
+
 double Analog::get_samplerate() const
 {
-	if (segments_.empty())
-		return 1.0;
-
-	return segments_.front()->samplerate();
+	return samplerate_;
 }
 
 uint64_t Analog::max_sample_count() const
@@ -81,7 +86,7 @@ uint64_t Analog::max_sample_count() const
 	return l;
 }
 
-void Analog::notify_samples_added(QObject* segment, uint64_t start_sample,
+void Analog::notify_samples_added(shared_ptr<Segment> segment, uint64_t start_sample,
 	uint64_t end_sample)
 {
 	samples_added(segment, start_sample, end_sample);
@@ -90,6 +95,11 @@ void Analog::notify_samples_added(QObject* segment, uint64_t start_sample,
 void Analog::notify_min_max_changed(float min, float max)
 {
 	min_max_changed(min, max);
+}
+
+void Analog::on_segment_completed()
+{
+	segment_completed();
 }
 
 } // namespace data

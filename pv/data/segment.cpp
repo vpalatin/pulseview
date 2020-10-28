@@ -46,7 +46,6 @@ Segment::Segment(uint32_t segment_id, uint64_t samplerate, unsigned int unit_siz
 	mem_optimization_requested_(false),
 	is_complete_(false)
 {
-	lock_guard<recursive_mutex> lock(mutex_);
 	assert(unit_size_ > 0);
 
 	// Determine the number of samples we can fit in one chunk
@@ -70,7 +69,6 @@ Segment::~Segment()
 
 uint64_t Segment::get_sample_count() const
 {
-	lock_guard<recursive_mutex> lock(mutex_);
 	return sample_count_;
 }
 
@@ -102,6 +100,8 @@ uint32_t Segment::segment_id() const
 void Segment::set_complete()
 {
 	is_complete_ = true;
+
+	completed();
 }
 
 bool Segment::is_complete() const
@@ -211,20 +211,33 @@ void Segment::append_samples(void* data, uint64_t samples)
 	sample_count_ += samples;
 }
 
-void Segment::get_raw_samples(uint64_t start, uint64_t count,
-	uint8_t* dest) const
+const uint8_t* Segment::get_raw_sample(uint64_t sample_num) const
+{
+	assert(sample_num <= sample_count_);
+
+	uint64_t chunk_num = (sample_num * unit_size_) / chunk_size_;
+	uint64_t chunk_offs = (sample_num * unit_size_) % chunk_size_;
+
+	lock_guard<recursive_mutex> lock(mutex_);  // Because of free_unused_memory()
+
+	const uint8_t* chunk = data_chunks_[chunk_num];
+
+	return chunk + chunk_offs;
+}
+
+void Segment::get_raw_samples(uint64_t start, uint64_t count, uint8_t* dest) const
 {
 	assert(start < sample_count_);
 	assert(start + count <= sample_count_);
 	assert(count > 0);
 	assert(dest != nullptr);
 
-	lock_guard<recursive_mutex> lock(mutex_);
-
 	uint8_t* dest_ptr = dest;
 
 	uint64_t chunk_num = (start * unit_size_) / chunk_size_;
 	uint64_t chunk_offs = (start * unit_size_) % chunk_size_;
+
+	lock_guard<recursive_mutex> lock(mutex_);  // Because of free_unused_memory()
 
 	while (count > 0) {
 		const uint8_t* chunk = data_chunks_[chunk_num];

@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEWS_TRACEVIEW_TRACE_HPP
-#define PULSEVIEW_PV_VIEWS_TRACEVIEW_TRACE_HPP
+#ifndef PULSEVIEW_PV_VIEWS_TRACE_TRACE_HPP
+#define PULSEVIEW_PV_VIEWS_TRACE_TRACE_HPP
 
 #include <QColor>
 #include <QPainter>
@@ -91,9 +91,10 @@ private:
 
 	static const QColor BrightGrayBGColor;
 	static const QColor DarkGrayBGColor;
+	static const QColor ErrorBgColor;
 
 protected:
-	Trace(shared_ptr<data::SignalBase> channel);
+	Trace(shared_ptr<data::SignalBase> signal);
 	~Trace();
 
 public:
@@ -127,6 +128,13 @@ public:
 	 */
 	virtual void paint_label(QPainter &p, const QRect &rect, bool hover);
 
+	/**
+	 * Paints the signal's current error message text.
+	 * @param p the QPainter to paint into.
+	 * @param pp The painting parameters object to paint with.
+	 */
+	virtual void paint_error(QPainter &p, const ViewItemPaintParams &pp);
+
 	virtual QMenu* create_header_context_menu(QWidget *parent);
 
 	virtual QMenu* create_view_context_menu(QWidget *parent, QPoint &click_pos);
@@ -142,7 +150,7 @@ public:
 
 	/**
 	 * Computes the outline rectangle of the viewport hit-box.
-	 * @param rect the rectangle of the viewport area.
+	 * @param pp The painting parameters object to paint with.
 	 * @return Returns the rectangle of the hit-box.
 	 * @remarks The default implementation returns an empty hit-box.
 	 */
@@ -184,8 +192,8 @@ protected:
 
 protected Q_SLOTS:
 	virtual void on_name_changed(const QString &text);
-
 	virtual void on_color_changed(const QColor &color);
+	virtual void on_error_message_changed(const QString &msg);
 
 	void on_popup_closed();
 
@@ -217,4 +225,4 @@ private:
 } // namespace views
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEWS_TRACEVIEW_TRACE_HPP
+#endif // PULSEVIEW_PV_VIEWS_TRACE_TRACE_HPP

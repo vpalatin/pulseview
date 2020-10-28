@@ -222,8 +222,8 @@ QWidget *Settings::get_general_settings_form(QWidget *parent) const
 
 	QString current_language = settings.value(GlobalSettings::Key_General_Language).toString();
 	for (const QString& language : a->get_languages()) {
-		QLocale locale = QLocale(language);
-		QString desc = locale.languageToString(locale.language());
+		const QLocale locale = QLocale(language);
+		const QString desc = locale.languageToString(locale.language());
 		language_cb->addItem(desc, language);
 
 		if (language == current_language) {
@@ -467,6 +467,7 @@ QWidget *Settings::get_about_page(QWidget *parent) const
 		tr("Protocol decoder search paths:") + "</b></td></tr>");
 	for (QString &entry : a->get_pd_path_list())
 		s.append(QString("<tr><td colspan=\"2\">%1</td></tr>").arg(entry));
+	s.append(tr("<tr><td colspan=\"2\">(Note: Set environment variable SIGROKDECODE_DIR to add a custom directory)</td></tr>"));
 #endif
 
 	s.append("<tr><td colspan=\"2\"></td></tr>");
@@ -498,6 +499,21 @@ QWidget *Settings::get_about_page(QWidget *parent) const
 		s.append(QString("<tr><td class=\"id\"><i>%1</i></td><td>%2</td></tr>")
 			.arg(entry.first, entry.second));
 #endif
+
+	s.append("<tr><td colspan=\"2\"></td></tr>");
+	s.append("<tr><td colspan=\"2\"><b>" +
+		tr("Available Translations:") + "</b></td></tr>");
+	for (const QString& language : a->get_languages()) {
+		if (language == "en")
+			continue;
+
+		const QLocale locale = QLocale(language);
+		const QString desc = locale.languageToString(locale.language());
+		const QString editors = a->get_language_editors(language);
+
+		s.append(QString("<tr><td class=\"id\"><i>%1</i></td><td>(%2)</td></tr>")
+			.arg(desc, editors));
+	}
 
 	s.append("</table>");
 

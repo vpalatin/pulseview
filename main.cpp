@@ -60,6 +60,7 @@
 #include "pv/mainwindow.hpp"
 #include "pv/session.hpp"
 #include "pv/util.hpp"
+#include "pv/data/segment.hpp"
 
 #ifdef ANDROID
 #include <libsigrokandroidutils/libsigrokandroidutils.h>
@@ -274,8 +275,10 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < argc; i++)
 		open_files.emplace_back(argv[i]);
 
-	qRegisterMetaType<pv::util::Timestamp>("util::Timestamp");
 	qRegisterMetaType<uint64_t>("uint64_t");
+	qRegisterMetaType<pv::util::Timestamp>("util::Timestamp");
+	qRegisterMetaType<SharedPtrToSegment>("SharedPtrToSegment");
+	qRegisterMetaType<shared_ptr<pv::data::SignalBase>>("shared_ptr<SignalBase>");
 
 	// Prepare the global settings since logging needs them early on
 	pv::GlobalSettings settings;
@@ -347,10 +350,9 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_SIGNALS
 			if (SignalHandler::prepare_signals()) {
 				SignalHandler *const handler = new SignalHandler(&w);
-				QObject::connect(handler, SIGNAL(int_received()),
-					&w, SLOT(close()));
-				QObject::connect(handler, SIGNAL(term_received()),
-					&w, SLOT(close()));
+				QObject::connect(handler, SIGNAL(int_received()), &w, SLOT(close()));
+				QObject::connect(handler, SIGNAL(term_received()), &w, SLOT(close()));
+				QObject::connect(handler, SIGNAL(usr1_received()), &w, SLOT(on_run_stop_clicked()));
 			} else
 				qWarning() << "Could not prepare signal handler.";
 #endif

@@ -21,9 +21,9 @@
 
 cmake_minimum_required(VERSION 2.8.12)
 
-include(GNUInstallDirs)
+project(pulseview C CXX)
 
-project(pulseview)
+include(GNUInstallDirs)
 
 # Let AUTOMOC and AUTOUIC process GENERATED files.
 if(POLICY CMP0071)
@@ -82,7 +82,7 @@ if(ENABLE_FLOW)
 	list(APPEND PKGDEPS libsigrokflow>=0.1.0)
 endif()
 
-set(LIBSR_CXX_BINDING "libsigrokcxx>=0.5.1")
+set(LIBSR_CXX_BINDING "libsigrokcxx>=0.5.2")
 list(APPEND PKGDEPS "${LIBSR_CXX_BINDING}")
 
 if(ENABLE_DECODE)
@@ -123,6 +123,14 @@ if(ENABLE_TESTS)
 endif()
 
 if(ENABLE_STACKTRACE)
+	include(FindBacktrace)
+	if (Backtrace_FOUND)
+		set(_Boost_STACKTRACE_BACKTRACE_HEADERS "boost/stacktrace.hpp")
+		list(APPEND BOOSTCOMPS stacktrace_backtrace)
+	else()
+		set(_Boost_STACKTRACE_BASIC_HEADERS     "boost/stacktrace.hpp")
+		list(APPEND BOOSTCOMPS stacktrace_basic)
+	endif()
 	find_package(Boost 1.65.1 COMPONENTS ${BOOSTCOMPS} REQUIRED)
 else()
 	find_package(Boost 1.55 COMPONENTS ${BOOSTCOMPS} REQUIRED)
@@ -192,7 +200,7 @@ memaccess_check_unaligned_le(HAVE_UNALIGNED_LITTLE_ENDIAN_ACCESS)
 #-------------------------------------------------------------------------------
 
 set(PV_TITLE PulseView)
-set(PV_VERSION_STRING "0.4.2")
+set(PV_VERSION_STRING "0.5.0")
 
 set(PV_GLIBMM_VERSION ${PKGDEPS_glibmm-2.4_VERSION})
 
@@ -239,6 +247,7 @@ set(pulseview_SOURCES
 	pv/globalsettings.cpp
 	pv/logging.cpp
 	pv/mainwindow.cpp
+	pv/metadata_obj.cpp
 	pv/session.cpp
 	pv/storesession.cpp
 	pv/util.cpp
@@ -249,6 +258,7 @@ set(pulseview_SOURCES
 	pv/data/analogsegment.cpp
 	pv/data/logic.cpp
 	pv/data/logicsegment.cpp
+	pv/data/mathsignal.cpp
 	pv/data/signalbase.cpp
 	pv/data/signaldata.cpp
 	pv/data/segment.cpp
@@ -276,6 +286,7 @@ set(pulseview_SOURCES
 	pv/views/trace/cursorpair.cpp
 	pv/views/trace/flag.cpp
 	pv/views/trace/header.cpp
+	pv/views/trace/mathsignal.cpp
 	pv/views/trace/marginwidget.cpp
 	pv/views/trace/logicsignal.cpp
 	pv/views/trace/ruler.cpp
@@ -311,9 +322,11 @@ set(pulseview_SOURCES
 
 # This list includes only QObject derived class headers.
 set(pulseview_HEADERS
+	pv/exprtk.hpp
 	pv/logging.hpp
 	pv/globalsettings.hpp
 	pv/mainwindow.hpp
+	pv/metadata_obj.hpp
 	pv/session.hpp
 	pv/storesession.hpp
 	pv/binding/device.hpp
@@ -321,6 +334,7 @@ set(pulseview_HEADERS
 	pv/data/analogsegment.hpp
 	pv/data/logic.hpp
 	pv/data/logicsegment.hpp
+	pv/data/mathsignal.hpp
 	pv/data/signalbase.hpp
 	pv/dialogs/connect.hpp
 	pv/dialogs/inputoutputoptions.hpp
@@ -341,6 +355,7 @@ set(pulseview_HEADERS
 	pv/views/trace/flag.hpp
 	pv/views/trace/header.hpp
 	pv/views/trace/logicsignal.hpp
+	pv/views/trace/mathsignal.hpp
 	pv/views/trace/marginwidget.hpp
 	pv/views/trace/ruler.hpp
 	pv/views/trace/signal.hpp
@@ -391,6 +406,8 @@ if(ENABLE_DECODE)
 		pv/subwindows/decoder_selector/subwindow.cpp
 		pv/views/decoder_binary/view.cpp
 		pv/views/decoder_binary/QHexView.cpp
+		pv/views/tabular_decoder/model.cpp
+		pv/views/tabular_decoder/view.cpp
 		pv/views/trace/decodetrace.cpp
 		pv/widgets/decodergroupbox.cpp
 		pv/widgets/decodermenu.cpp
@@ -401,6 +418,7 @@ if(ENABLE_DECODE)
 		pv/subwindows/decoder_selector/subwindow.hpp
 		pv/views/decoder_binary/view.hpp
 		pv/views/decoder_binary/QHexView.hpp
+		pv/views/tabular_decoder/view.hpp
 		pv/views/trace/decodetrace.hpp
 		pv/widgets/decodergroupbox.hpp
 		pv/widgets/decodermenu.hpp
@@ -447,6 +465,9 @@ add_definitions(-D__STDC_LIMIT_MACROS)
 add_definitions(-Wall -Wextra)
 add_definitions(-std=c++11)
 add_definitions(-DBOOST_MATH_DISABLE_FLOAT128=1)
+if(WIN32)
+	add_definitions(-Wa,-mbig-obj -O3)
+endif()
 
 if(ENABLE_FLOW)
 	add_definitions(-DENABLE_FLOW)
@@ -465,7 +486,10 @@ if(ENABLE_SIGNALS)
 endif()
 
 if(ENABLE_STACKTRACE)
-	add_definitions(-DENABLE_STACKTRACE)
+	add_definitions(-DENABLE_STACKTRACE -no-pie -fno-pie)
+	if (Backtrace_FOUND)
+		add_definitions(-DBOOST_STACKTRACE_USE_BACKTRACE)
+	endif()
 endif()
 
 #===============================================================================
@@ -520,8 +544,8 @@ if(WIN32)
 endif()
 
 if(ENABLE_STACKTRACE)
-	# Needed to resolve dladdr.
-	list(APPEND PULSEVIEW_LINK_LIBS "-ldl")
+	list(APPEND PULSEVIEW_LINK_LIBS ${CMAKE_DL_LIBS} ${Backtrace_LIBRARIES})
+	link_libraries("-no-pie -fno-pie")
 endif()
 
 if(ANDROID)

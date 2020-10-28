@@ -83,8 +83,11 @@ void DecodeSignal::stack_decoder(const srd_decoder *decoder, bool restart_decode
 	if ((stack_.empty()) || ((stack_.size() > 0) && (name() == prev_dec_name)))
 		set_name(QString::fromUtf8(decoder->name));
 
-	const shared_ptr<Decoder> dec = make_shared<Decoder>(decoder);
+	const shared_ptr<Decoder> dec = make_shared<Decoder>(decoder, stack_.size());
 	stack_.push_back(dec);
+
+	connect(dec.get(), SIGNAL(annotation_visibility_changed()),
+		this, SLOT(on_annotation_visibility_changed()));
 
 	// Include the newly created decode channels in the channel lists
 	update_channel_list();
@@ -105,11 +108,12 @@ void DecodeSignal::remove_decoder(int index)
 	assert(index < (int)stack_.size());
 
 	// Find the decoder in the stack
-	auto iter = stack_.begin();
-	for (int i = 0; i < index; i++, iter++)
-		assert(iter != stack_.end());
+	auto iter = stack_.begin() + index;
+	assert(iter != stack_.end());
 
-	decoder_removed(iter->get());
+	shared_ptr<Decoder> dec = *iter;
+
+	decoder_removed(dec.get());
 
 	// Delete the element
 	stack_.erase(iter);
@@ -166,7 +170,7 @@ void DecodeSignal::reset_decode(bool shutting_down)
 	logic_mux_data_invalid_ = true;
 
 	if (!error_message_.isEmpty()) {
-		error_message_ = QString();
+		error_message_.clear();
 		// TODO Emulate noquote()
 		qDebug().nospace() << name() << ": Error cleared";
 	}
@@ -230,10 +234,8 @@ void DecodeSignal::begin_decode()
 	// Receive notifications when new sample data is available
 	connect_input_notifiers();
 
-	if (get_input_segment_count() == 0) {
+	if (get_input_segment_count() == 0)
 		set_error_message(tr("No input data"));
-		return;
-	}
 
 	// Make sure the logic output data is complete and up-to-date
 	logic_mux_interrupt_ = false;
@@ -261,12 +263,6 @@ void DecodeSignal::resume_decode()
 bool DecodeSignal::is_paused() const
 {
 	return decode_paused_;
-}
-
-QString DecodeSignal::error_message() const
-{
-	lock_guard<mutex> lock(output_mutex_);
-	return error_message_;
 }
 
 const vector<decode::DecodeChannel> DecodeSignal::get_channels() const
@@ -313,7 +309,7 @@ void DecodeSignal::auto_assign_signals(const shared_ptr<Decoder> dec)
 		}
 
 		if (match) {
-			ch.assigned_signal = match.get();
+			ch.assigned_signal = match;
 			new_assignment = true;
 		}
 	}
@@ -326,7 +322,7 @@ void DecodeSignal::auto_assign_signals(const shared_ptr<Decoder> dec)
 	}
 }
 
-void DecodeSignal::assign_signal(const uint16_t channel_id, const SignalBase *signal)
+void DecodeSignal::assign_signal(const uint16_t channel_id, shared_ptr<const SignalBase> signal)
 {
 	for (decode::DecodeChannel& ch : channels_)
 		if (ch.id == channel_id) {
@@ -344,7 +340,7 @@ int DecodeSignal::get_assigned_signal_count() const
 {
 	// Count all channels that have a signal assigned to them
 	return count_if(channels_.begin(), channels_.end(),
-		[](decode::DecodeChannel ch) { return ch.assigned_signal; });
+		[](decode::DecodeChannel ch) { return ch.assigned_signal.get(); });
 }
 
 void DecodeSignal::set_initial_pin_state(const uint16_t channel_id, const int init_state)
@@ -358,7 +354,7 @@ void DecodeSignal::set_initial_pin_state(const uint16_t channel_id, const int in
 	begin_decode();
 }
 
-double DecodeSignal::samplerate() const
+double DecodeSignal::get_samplerate() const
 {
 	double result = 0;
 
@@ -391,18 +387,21 @@ int64_t DecodeSignal::get_working_sample_count(uint32_t segment_id) const
 
 	for (const decode::DecodeChannel& ch : channels_)
 		if (ch.assigned_signal) {
+			if (!ch.assigned_signal->logic_data())
+				return 0;
+
 			no_signals_assigned = false;
 
 			const shared_ptr<Logic> logic_data = ch.assigned_signal->logic_data();
-			if (!logic_data || logic_data->logic_segments().empty())
+			if (logic_data->logic_segments().empty())
 				return 0;
 
-			try {
-				const shared_ptr<LogicSegment> segment = logic_data->logic_segments().at(segment_id);
-				count = min(count, (int64_t)segment->get_sample_count());
-			} catch (out_of_range&) {
+			if (segment_id >= logic_data->logic_segments().size())
 				return 0;
-			}
+
+			const shared_ptr<const LogicSegment> segment = logic_data->logic_segments()[segment_id]->get_shared_ptr();
+			if (segment)
+				count = min(count, (int64_t)segment->get_sample_count());
 		}
 
 	return (no_signals_assigned ? 0 : count);
@@ -509,18 +508,14 @@ void DecodeSignal::get_annotation_subset(deque<const Annotation*> &dest,
 uint32_t DecodeSignal::get_binary_data_chunk_count(uint32_t segment_id,
 	const Decoder* dec, uint32_t bin_class_id) const
 {
-	if (segments_.size() == 0)
+	if ((segments_.size() == 0) || (segment_id >= segments_.size()))
 		return 0;
 
-	try {
-		const DecodeSegment *segment = &(segments_.at(segment_id));
+	const DecodeSegment *segment = &(segments_[segment_id]);
 
-		for (const DecodeBinaryClass& bc : segment->binary_classes)
-			if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
-				return bc.chunks.size();
-	} catch (out_of_range&) {
-		// Do nothing
-	}
+	for (const DecodeBinaryClass& bc : segment->binary_classes)
+		if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
+			return bc.chunks.size();
 
 	return 0;
 }
@@ -529,18 +524,17 @@ void DecodeSignal::get_binary_data_chunk(uint32_t segment_id,
 	const  Decoder* dec, uint32_t bin_class_id, uint32_t chunk_id,
 	const vector<uint8_t> **dest, uint64_t *size)
 {
-	try {
-		const DecodeSegment *segment = &(segments_.at(segment_id));
+	if (segment_id >= segments_.size())
+		return;
 
-		for (const DecodeBinaryClass& bc : segment->binary_classes)
-			if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id)) {
-				if (dest) *dest = &(bc.chunks.at(chunk_id).data);
-				if (size) *size = bc.chunks.at(chunk_id).data.size();
-				return;
-			}
-	} catch (out_of_range&) {
-		// Do nothing
-	}
+	const DecodeSegment *segment = &(segments_[segment_id]);
+
+	for (const DecodeBinaryClass& bc : segment->binary_classes)
+		if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id)) {
+			if (dest) *dest = &(bc.chunks.at(chunk_id).data);
+			if (size) *size = bc.chunks.at(chunk_id).data.size();
+			return;
+		}
 }
 
 void DecodeSignal::get_merged_binary_data_chunks_by_sample(uint32_t segment_id,
@@ -549,39 +543,38 @@ void DecodeSignal::get_merged_binary_data_chunks_by_sample(uint32_t segment_id,
 {
 	assert(dest != nullptr);
 
-	try {
-		const DecodeSegment *segment = &(segments_.at(segment_id));
+	if (segment_id >= segments_.size())
+		return;
 
-		const DecodeBinaryClass* bin_class = nullptr;
-		for (const DecodeBinaryClass& bc : segment->binary_classes)
-			if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
-				bin_class = &bc;
+	const DecodeSegment *segment = &(segments_[segment_id]);
 
-		// Determine overall size before copying to resize dest vector only once
-		uint64_t size = 0;
-		uint64_t matches = 0;
-		for (const DecodeBinaryDataChunk& chunk : bin_class->chunks)
-			if ((chunk.sample >= start_sample) && (chunk.sample < end_sample)) {
-				size += chunk.data.size();
-				matches++;
-			}
-		dest->resize(size);
+	const DecodeBinaryClass* bin_class = nullptr;
+	for (const DecodeBinaryClass& bc : segment->binary_classes)
+		if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
+			bin_class = &bc;
 
-		uint64_t offset = 0;
-		uint64_t matches2 = 0;
-		for (const DecodeBinaryDataChunk& chunk : bin_class->chunks)
-			if ((chunk.sample >= start_sample) && (chunk.sample < end_sample)) {
-				memcpy(dest->data() + offset, chunk.data.data(), chunk.data.size());
-				offset += chunk.data.size();
-				matches2++;
+	// Determine overall size before copying to resize dest vector only once
+	uint64_t size = 0;
+	uint64_t matches = 0;
+	for (const DecodeBinaryDataChunk& chunk : bin_class->chunks)
+		if ((chunk.sample >= start_sample) && (chunk.sample < end_sample)) {
+			size += chunk.data.size();
+			matches++;
+		}
+	dest->resize(size);
 
-				// Make sure we don't overwrite memory if the array grew in the meanwhile
-				if (matches2 == matches)
-					break;
-			}
-	} catch (out_of_range&) {
-		// Do nothing
-	}
+	uint64_t offset = 0;
+	uint64_t matches2 = 0;
+	for (const DecodeBinaryDataChunk& chunk : bin_class->chunks)
+		if ((chunk.sample >= start_sample) && (chunk.sample < end_sample)) {
+			memcpy(dest->data() + offset, chunk.data.data(), chunk.data.size());
+			offset += chunk.data.size();
+			matches2++;
+
+			// Make sure we don't overwrite memory if the array grew in the meanwhile
+			if (matches2 == matches)
+				break;
+		}
 }
 
 void DecodeSignal::get_merged_binary_data_chunks_by_offset(uint32_t segment_id,
@@ -590,56 +583,65 @@ void DecodeSignal::get_merged_binary_data_chunks_by_offset(uint32_t segment_id,
 {
 	assert(dest != nullptr);
 
-	try {
-		const DecodeSegment *segment = &(segments_.at(segment_id));
+	if (segment_id >= segments_.size())
+		return;
 
-		const DecodeBinaryClass* bin_class = nullptr;
-		for (const DecodeBinaryClass& bc : segment->binary_classes)
-			if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
-				bin_class = &bc;
+	const DecodeSegment *segment = &(segments_[segment_id]);
 
-		// Determine overall size before copying to resize dest vector only once
-		uint64_t size = 0;
-		uint64_t offset = 0;
-		for (const DecodeBinaryDataChunk& chunk : bin_class->chunks) {
-			if (offset >= start)
-				size += chunk.data.size();
-			offset += chunk.data.size();
-			if (offset >= end)
-				break;
+	const DecodeBinaryClass* bin_class = nullptr;
+	for (const DecodeBinaryClass& bc : segment->binary_classes)
+		if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
+			bin_class = &bc;
+
+	// Determine overall size before copying to resize dest vector only once
+	uint64_t size = 0;
+	uint64_t offset = 0;
+	for (const DecodeBinaryDataChunk& chunk : bin_class->chunks) {
+		if (offset >= start)
+			size += chunk.data.size();
+		offset += chunk.data.size();
+		if (offset >= end)
+			break;
+	}
+	dest->resize(size);
+
+	offset = 0;
+	uint64_t dest_offset = 0;
+	for (const DecodeBinaryDataChunk& chunk : bin_class->chunks) {
+		if (offset >= start) {
+			memcpy(dest->data() + dest_offset, chunk.data.data(), chunk.data.size());
+			dest_offset += chunk.data.size();
 		}
-		dest->resize(size);
-
-		offset = 0;
-		uint64_t dest_offset = 0;
-		for (const DecodeBinaryDataChunk& chunk : bin_class->chunks) {
-			if (offset >= start) {
-				memcpy(dest->data() + dest_offset, chunk.data.data(), chunk.data.size());
-				dest_offset += chunk.data.size();
-			}
-			offset += chunk.data.size();
-			if (offset >= end)
-				break;
-		}
-	} catch (out_of_range&) {
-		// Do nothing
+		offset += chunk.data.size();
+		if (offset >= end)
+			break;
 	}
 }
 
 const DecodeBinaryClass* DecodeSignal::get_binary_data_class(uint32_t segment_id,
 	const Decoder* dec, uint32_t bin_class_id) const
 {
-	try {
-		const DecodeSegment *segment = &(segments_.at(segment_id));
+	if (segment_id >= segments_.size())
+		return nullptr;
 
-		for (const DecodeBinaryClass& bc : segment->binary_classes)
-			if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
-				return &bc;
-	} catch (out_of_range&) {
-		// Do nothing
-	}
+	const DecodeSegment *segment = &(segments_[segment_id]);
+
+	for (const DecodeBinaryClass& bc : segment->binary_classes)
+		if ((bc.decoder == dec) && (bc.info->bin_class_id == bin_class_id))
+			return &bc;
 
 	return nullptr;
+}
+
+const deque<const Annotation*>* DecodeSignal::get_all_annotations_by_segment(
+	uint32_t segment_id) const
+{
+	if (segment_id >= segments_.size())
+		return nullptr;
+
+	const DecodeSegment *segment = &(segments_[segment_id]);
+
+	return &(segment->all_annotations);
 }
 
 void DecodeSignal::save_settings(QSettings &settings) const
@@ -685,7 +687,7 @@ void DecodeSignal::save_settings(QSettings &settings) const
 		i = 0;
 		for (const AnnotationClass* ann_class : decoder->ann_classes()) {
 			settings.beginGroup("ann_class" + QString::number(i));
-			settings.setValue("visible", ann_class->visible);
+			settings.setValue("visible", ann_class->visible());
 			settings.endGroup();
 			i++;
 		}
@@ -737,7 +739,10 @@ void DecodeSignal::restore_settings(QSettings &settings)
 				continue;
 
 			if (QString::fromUtf8(dec->id) == id) {
-				shared_ptr<Decoder> decoder = make_shared<Decoder>(dec);
+				shared_ptr<Decoder> decoder = make_shared<Decoder>(dec, stack_.size());
+
+				connect(decoder.get(), SIGNAL(annotation_visibility_changed()),
+					this, SLOT(on_annotation_visibility_changed()));
 
 				stack_.push_back(decoder);
 				decoder->set_visible(settings.value("visible", true).toBool());
@@ -769,7 +774,7 @@ void DecodeSignal::restore_settings(QSettings &settings)
 				i = 0;
 				for (AnnotationClass* ann_class : decoder->ann_classes()) {
 					settings.beginGroup("ann_class" + QString::number(i));
-					ann_class->visible = settings.value("visible", true).toBool();
+					ann_class->set_visible(settings.value("visible", true).toBool());
 					settings.endGroup();
 					i++;
 				}
@@ -802,8 +807,8 @@ void DecodeSignal::restore_settings(QSettings &settings)
 		QString assigned_signal_name = settings.value("assigned_signal_name").toString();
 
 		for (const shared_ptr<data::SignalBase>& signal : signalbases)
-			if (signal->name() == assigned_signal_name)
-				channel->assigned_signal = signal.get();
+			if ((signal->name() == assigned_signal_name) && (signal->type() != SignalBase::DecodeChannel))
+				channel->assigned_signal = signal;
 
 		channel->initial_pin_state = settings.value("initial_pin_state").toInt();
 
@@ -818,11 +823,28 @@ void DecodeSignal::restore_settings(QSettings &settings)
 	begin_decode();
 }
 
-void DecodeSignal::set_error_message(QString msg)
+bool DecodeSignal::all_input_segments_complete(uint32_t segment_id) const
 {
-	error_message_ = msg;
-	// TODO Emulate noquote()
-	qDebug().nospace() << name() << ": " << msg;
+	bool all_complete = true;
+
+	for (const decode::DecodeChannel& ch : channels_)
+		if (ch.assigned_signal) {
+			if (!ch.assigned_signal->logic_data())
+				continue;
+
+			const shared_ptr<Logic> logic_data = ch.assigned_signal->logic_data();
+			if (logic_data->logic_segments().empty())
+				return false;
+
+			if (segment_id >= logic_data->logic_segments().size())
+				return false;
+
+			const shared_ptr<const LogicSegment> segment = logic_data->logic_segments()[segment_id]->get_shared_ptr();
+			if (segment && !segment->is_complete())
+				all_complete = false;
+		}
+
+	return all_complete;
 }
 
 uint32_t DecodeSignal::get_input_segment_count() const
@@ -846,7 +868,7 @@ uint32_t DecodeSignal::get_input_segment_count() const
 	return (no_signals_assigned ? 0 : count);
 }
 
-uint32_t DecodeSignal::get_input_samplerate(uint32_t segment_id) const
+double DecodeSignal::get_input_samplerate(uint32_t segment_id) const
 {
 	double samplerate = 0;
 
@@ -857,8 +879,10 @@ uint32_t DecodeSignal::get_input_samplerate(uint32_t segment_id) const
 				continue;
 
 			try {
-				const shared_ptr<LogicSegment> segment = logic_data->logic_segments().at(segment_id);
-				samplerate = segment->samplerate();
+				const shared_ptr<const LogicSegment> segment =
+					logic_data->logic_segments().at(segment_id)->get_shared_ptr();
+				if (segment)
+					samplerate = segment->samplerate();
 			} catch (out_of_range&) {
 				// Do nothing
 			}
@@ -985,7 +1009,7 @@ void DecodeSignal::mux_logic_samples(uint32_t segment_id, const int64_t start, c
 		return;
 
 	// Fetch the channel segments and their data
-	vector<shared_ptr<LogicSegment> > segments;
+	vector<shared_ptr<const LogicSegment> > segments;
 	vector<const uint8_t*> signal_data;
 	vector<uint8_t> signal_in_bytepos;
 	vector<uint8_t> signal_in_bitpos;
@@ -994,14 +1018,19 @@ void DecodeSignal::mux_logic_samples(uint32_t segment_id, const int64_t start, c
 		if (ch.assigned_signal) {
 			const shared_ptr<Logic> logic_data = ch.assigned_signal->logic_data();
 
-			shared_ptr<LogicSegment> segment;
-			try {
-				segment = logic_data->logic_segments().at(segment_id);
-			} catch (out_of_range&) {
+			shared_ptr<const LogicSegment> segment;
+			if (segment_id < logic_data->logic_segments().size()) {
+				segment = logic_data->logic_segments().at(segment_id)->get_shared_ptr();
+			} else {
 				qDebug() << "Muxer error for" << name() << ":" << ch.assigned_signal->name() \
 					<< "has no logic segment" << segment_id;
+				logic_mux_interrupt_ = true;
 				return;
 			}
+
+			if (!segment)
+				return;
+
 			segments.push_back(segment);
 
 			uint8_t* data = new uint8_t[(end - start) * segment->unit_size()];
@@ -1013,7 +1042,6 @@ void DecodeSignal::mux_logic_samples(uint32_t segment_id, const int64_t start, c
 			signal_in_bitpos.push_back(bitpos % 8);
 		}
 
-
 	shared_ptr<LogicSegment> output_segment;
 	try {
 		output_segment = logic_mux_data_->logic_segments().at(segment_id);
@@ -1021,6 +1049,7 @@ void DecodeSignal::mux_logic_samples(uint32_t segment_id, const int64_t start, c
 		qDebug() << "Muxer error for" << name() << ": no logic mux segment" \
 			<< segment_id << "in mux_logic_samples(), mux segments size is" \
 			<< logic_mux_data_->logic_segments().size();
+		logic_mux_interrupt_ = true;
 		return;
 	}
 
@@ -1064,82 +1093,101 @@ void DecodeSignal::mux_logic_samples(uint32_t segment_id, const int64_t start, c
 
 void DecodeSignal::logic_mux_proc()
 {
-	uint32_t segment_id = 0;
+	uint32_t input_segment_count;
+	do {
+		input_segment_count = get_input_segment_count();
+		if (input_segment_count == 0) {
+			// Wait for input data
+			unique_lock<mutex> logic_mux_lock(logic_mux_mutex_);
+			logic_mux_cond_.wait(logic_mux_lock);
+		}
+	} while ((!logic_mux_interrupt_) && (input_segment_count == 0));
+
+	if (logic_mux_interrupt_)
+		return;
 
 	assert(logic_mux_data_);
 
+	uint32_t segment_id = 0;
+
 	// Create initial logic mux segment
 	shared_ptr<LogicSegment> output_segment =
-		make_shared<LogicSegment>(*logic_mux_data_, segment_id,
-			logic_mux_unit_size_, 0);
+		make_shared<LogicSegment>(*logic_mux_data_, segment_id, logic_mux_unit_size_, 0);
 	logic_mux_data_->push_segment(output_segment);
 
 	output_segment->set_samplerate(get_input_samplerate(0));
 
+	// Logic mux data is being updated
+	logic_mux_data_invalid_ = false;
+
+	uint64_t samples_to_process;
 	do {
-		const uint64_t input_sample_count = get_working_sample_count(segment_id);
-		const uint64_t output_sample_count = output_segment->get_sample_count();
+		do {
+			const uint64_t input_sample_count = get_working_sample_count(segment_id);
+			const uint64_t output_sample_count = output_segment->get_sample_count();
 
-		const uint64_t samples_to_process =
-			(input_sample_count > output_sample_count) ?
-			(input_sample_count - output_sample_count) : 0;
+			samples_to_process =
+				(input_sample_count > output_sample_count) ?
+				(input_sample_count - output_sample_count) : 0;
 
-		// Process the samples if necessary...
-		if (samples_to_process > 0) {
-			const uint64_t unit_size = output_segment->unit_size();
-			const uint64_t chunk_sample_count = DecodeChunkLength / unit_size;
+			if (samples_to_process > 0) {
+				const uint64_t unit_size = output_segment->unit_size();
+				const uint64_t chunk_sample_count = DecodeChunkLength / unit_size;
 
-			uint64_t processed_samples = 0;
-			do {
-				const uint64_t start_sample = output_sample_count + processed_samples;
-				const uint64_t sample_count =
-					min(samples_to_process - processed_samples,	chunk_sample_count);
+				uint64_t processed_samples = 0;
+				do {
+					const uint64_t start_sample = output_sample_count + processed_samples;
+					const uint64_t sample_count =
+						min(samples_to_process - processed_samples,	chunk_sample_count);
 
-				mux_logic_samples(segment_id, start_sample, start_sample + sample_count);
-				processed_samples += sample_count;
+					mux_logic_samples(segment_id, start_sample, start_sample + sample_count);
+					processed_samples += sample_count;
 
-				// ...and process the newly muxed logic data
-				decode_input_cond_.notify_one();
-			} while (!logic_mux_interrupt_ && (processed_samples < samples_to_process));
-		}
+					// ...and process the newly muxed logic data
+					decode_input_cond_.notify_one();
+				} while (!logic_mux_interrupt_ && (processed_samples < samples_to_process));
+			}
+		} while (!logic_mux_interrupt_ && (samples_to_process > 0));
 
-		if (samples_to_process == 0) {
-			// TODO Optimize this by caching the input segment count and only
-			// querying it when the cached value was reached
-			if (segment_id < get_input_segment_count() - 1) {
-				// Process next segment
-				segment_id++;
+		if (!logic_mux_interrupt_) {
+			// samples_to_process is now 0, we've exhausted the currently available input data
 
-				output_segment =
-					make_shared<LogicSegment>(*logic_mux_data_, segment_id,
-						logic_mux_unit_size_, 0);
-				logic_mux_data_->push_segment(output_segment);
+			// If the input segments are complete, we've completed this segment
+			if (all_input_segments_complete(segment_id)) {
+				if (!output_segment->is_complete())
+					output_segment->set_complete();
 
-				output_segment->set_samplerate(get_input_samplerate(segment_id));
+				if (segment_id < get_input_segment_count() - 1) {
+					// Process next segment
+					segment_id++;
 
-			} else {
-				// All segments have been processed
-				logic_mux_data_invalid_ = false;
+					output_segment =
+						make_shared<LogicSegment>(*logic_mux_data_, segment_id,
+							logic_mux_unit_size_, 0);
+					logic_mux_data_->push_segment(output_segment);
 
-				// Wait for more input
+					output_segment->set_samplerate(get_input_samplerate(segment_id));
+				}
+			}
+
+			if (segment_id == (get_input_segment_count() - 1)) {
+				// Wait for more input data if we're processing the currently last segment
 				unique_lock<mutex> logic_mux_lock(logic_mux_mutex_);
 				logic_mux_cond_.wait(logic_mux_lock);
 			}
 		}
-
 	} while (!logic_mux_interrupt_);
 }
 
 void DecodeSignal::decode_data(
 	const int64_t abs_start_samplenum, const int64_t sample_count,
-	const shared_ptr<LogicSegment> input_segment)
+	const shared_ptr<const LogicSegment> input_segment)
 {
 	const int64_t unit_size = input_segment->unit_size();
 	const int64_t chunk_sample_count = DecodeChunkLength / unit_size;
 
 	for (int64_t i = abs_start_samplenum;
-		error_message_.isEmpty() && !decode_interrupt_ &&
-			(i < (abs_start_samplenum + sample_count));
+		!decode_interrupt_ && (i < (abs_start_samplenum + sample_count));
 		i += chunk_sample_count) {
 
 		const int64_t chunk_end = min(i + chunk_sample_count,
@@ -1156,8 +1204,10 @@ void DecodeSignal::decode_data(
 		input_segment->get_samples(i, chunk_end, chunk);
 
 		if (srd_session_send(srd_session_, i, chunk_end, chunk,
-				data_size, unit_size) != SRD_OK)
+				data_size, unit_size) != SRD_OK) {
 			set_error_message(tr("Decoder reported an error"));
+			decode_interrupt_ = true;
+		}
 
 		delete[] chunk;
 
@@ -1183,16 +1233,20 @@ void DecodeSignal::decode_proc()
 	current_segment_id_ = 0;
 
 	// If there is no input data available yet, wait until it is or we're interrupted
-	if (logic_mux_data_->logic_segments().size() == 0) {
-		unique_lock<mutex> input_wait_lock(input_mutex_);
-		decode_input_cond_.wait(input_wait_lock);
-	}
+	do {
+		if (logic_mux_data_->logic_segments().size() == 0) {
+			// Wait for input data
+			unique_lock<mutex> input_wait_lock(input_mutex_);
+			decode_input_cond_.wait(input_wait_lock);
+		}
+	} while ((!decode_interrupt_) && (logic_mux_data_->logic_segments().size() == 0));
 
 	if (decode_interrupt_)
 		return;
 
-	shared_ptr<LogicSegment> input_segment = logic_mux_data_->logic_segments().front();
-	assert(input_segment);
+	shared_ptr<const LogicSegment> input_segment = logic_mux_data_->logic_segments().front()->get_shared_ptr();
+	if (!input_segment)
+		return;
 
 	// Create the initial segment and set its sample rate so that we can pass it to SRD
 	create_decode_segment();
@@ -1201,57 +1255,60 @@ void DecodeSignal::decode_proc()
 
 	start_srd_session();
 
-	uint64_t sample_count = 0;
+	uint64_t samples_to_process = 0;
 	uint64_t abs_start_samplenum = 0;
 	do {
 		// Keep processing new samples until we exhaust the input data
 		do {
-			lock_guard<mutex> input_lock(input_mutex_);
-			sample_count = input_segment->get_sample_count() - abs_start_samplenum;
+			samples_to_process = input_segment->get_sample_count() - abs_start_samplenum;
 
-			if (sample_count > 0) {
-				decode_data(abs_start_samplenum, sample_count, input_segment);
-				abs_start_samplenum += sample_count;
+			if (samples_to_process > 0) {
+				decode_data(abs_start_samplenum, samples_to_process, input_segment);
+				abs_start_samplenum += samples_to_process;
 			}
-		} while (error_message_.isEmpty() && (sample_count > 0) && !decode_interrupt_);
+		} while (!decode_interrupt_ && (samples_to_process > 0));
 
-		if (error_message_.isEmpty() && !decode_interrupt_ && sample_count == 0) {
-			if (current_segment_id_ < logic_mux_data_->logic_segments().size() - 1) {
-				// Process next segment
-				current_segment_id_++;
+		if (!decode_interrupt_) {
+			// samples_to_process is now 0, we've exhausted the currently available input data
 
-				try {
-					input_segment = logic_mux_data_->logic_segments().at(current_segment_id_);
-				} catch (out_of_range&) {
-					qDebug() << "Decode error for" << name() << ": no logic mux segment" \
-						<< current_segment_id_ << "in decode_proc(), mux segments size is" \
-						<< logic_mux_data_->logic_segments().size();
-					return;
+			// If the input segment is complete, we've exhausted this segment
+			if (input_segment->is_complete()) {
+				if (current_segment_id_ < (logic_mux_data_->logic_segments().size() - 1)) {
+					// Process next segment
+					current_segment_id_++;
+
+					try {
+						input_segment = logic_mux_data_->logic_segments().at(current_segment_id_);
+					} catch (out_of_range&) {
+						qDebug() << "Decode error for" << name() << ": no logic mux segment" \
+							<< current_segment_id_ << "in decode_proc(), mux segments size is" \
+							<< logic_mux_data_->logic_segments().size();
+						decode_interrupt_ = true;
+						return;
+					}
+					abs_start_samplenum = 0;
+
+					// Create the next segment and set its metadata
+					create_decode_segment();
+					segments_.at(current_segment_id_).samplerate = input_segment->samplerate();
+					segments_.at(current_segment_id_).start_time = input_segment->start_time();
+
+					// Reset decoder state but keep the decoder stack intact
+					terminate_srd_session();
+				} else {
+					// All segments have been processed
+					if (!decode_interrupt_)
+						decode_finished();
 				}
-				abs_start_samplenum = 0;
+			}
 
-				// Create the next segment and set its metadata
-				create_decode_segment();
-				segments_.at(current_segment_id_).samplerate = input_segment->samplerate();
-				segments_.at(current_segment_id_).start_time = input_segment->start_time();
-
-				// Reset decoder state but keep the decoder stack intact
-				terminate_srd_session();
-			} else {
-				// All segments have been processed
-				decode_finished();
-
-				// Wait for new input data or an interrupt was requested
+			if (current_segment_id_ == (logic_mux_data_->logic_segments().size() - 1)) {
+				// Wait for more input data if we're processing the currently last segment
 				unique_lock<mutex> input_wait_lock(input_mutex_);
 				decode_input_cond_.wait(input_wait_lock);
 			}
 		}
-	} while (error_message_.isEmpty() && !decode_interrupt_);
-
-	// Potentially reap decoders when the application no longer is
-	// interested in their (pending) results.
-	if (decode_interrupt_)
-		terminate_srd_session();
+	} while (!decode_interrupt_);
 }
 
 void DecodeSignal::start_srd_session()
@@ -1368,18 +1425,18 @@ void DecodeSignal::connect_input_notifiers()
 		if (!ch.assigned_signal)
 			continue;
 
-		const data::SignalBase *signal = ch.assigned_signal;
-		connect(signal, SIGNAL(samples_cleared()),
-			this, SLOT(on_data_cleared()));
-		connect(signal, SIGNAL(samples_added(uint64_t, uint64_t, uint64_t)),
-			this, SLOT(on_data_received()));
+		const data::SignalBase *signal = ch.assigned_signal.get();
+		connect(signal, &data::SignalBase::samples_cleared,
+			this, &DecodeSignal::on_data_cleared);
+		connect(signal, &data::SignalBase::samples_added,
+			this, &DecodeSignal::on_data_received);
 	}
 }
 
 void DecodeSignal::create_decode_segment()
 {
 	// Create annotation segment
-	segments_.emplace_back(DecodeSegment());
+	segments_.emplace_back();
 
 	// Add annotation classes
 	for (const shared_ptr<Decoder>& dec : stack_)
@@ -1405,6 +1462,9 @@ void DecodeSignal::annotation_callback(srd_proto_data *pdata, void *decode_signa
 	assert(ds);
 
 	if (ds->decode_interrupt_)
+		return;
+
+	if (ds->segments_.empty())
 		return;
 
 	lock_guard<mutex> lock(ds->output_mutex_);
@@ -1435,8 +1495,67 @@ void DecodeSignal::annotation_callback(srd_proto_data *pdata, void *decode_signa
 	if (!row)
 		row = dec->get_row_by_id(0);
 
-	// Add the annotation
-	ds->segments_[ds->current_segment_id_].annotation_rows.at(row).emplace_annotation(pdata);
+	RowData& row_data = ds->segments_[ds->current_segment_id_].annotation_rows.at(row);
+
+	// Add the annotation to the row
+	const Annotation* ann = row_data.emplace_annotation(pdata);
+
+	// We insert the annotation into the global annotation list in a way so that
+	// the annotation list is sorted by start sample and length. Otherwise, we'd
+	// have to sort the model, which is expensive
+	deque<const Annotation*>& all_annotations =
+		ds->segments_[ds->current_segment_id_].all_annotations;
+
+	if (all_annotations.empty()) {
+		all_annotations.emplace_back(ann);
+	} else {
+		const uint64_t new_ann_len = (pdata->end_sample - pdata->start_sample);
+		bool ann_has_earlier_start = (pdata->start_sample < all_annotations.back()->start_sample());
+		bool ann_is_longer = (new_ann_len >
+			(all_annotations.back()->end_sample() - all_annotations.back()->start_sample()));
+
+		if (ann_has_earlier_start && ann_is_longer) {
+			bool ann_has_same_start;
+			auto it = all_annotations.end();
+
+			do {
+				it--;
+				ann_has_earlier_start = (pdata->start_sample < (*it)->start_sample());
+				ann_has_same_start = (pdata->start_sample == (*it)->start_sample());
+				ann_is_longer = (new_ann_len > (*it)->length());
+			} while ((ann_has_earlier_start || (ann_has_same_start && ann_is_longer)) && (it != all_annotations.begin()));
+
+			// Allow inserting at the front
+			if (it != all_annotations.begin())
+				it++;
+
+			all_annotations.emplace(it, ann);
+		} else
+			all_annotations.emplace_back(ann);
+	}
+
+	// When emplace_annotation() inserts instead of appends an annotation,
+	// the pointers in all_annotations that follow the inserted annotation and
+	// point to annotations for this row are off by one and must be updated
+	if (&(row_data.annotations().back()) != ann) {
+		// Search backwards until we find the annotation we just added
+		auto row_it = row_data.annotations().end();
+		auto all_it = all_annotations.end();
+		do {
+			all_it--;
+			if ((*all_it)->row_data() == &row_data)
+				row_it--;
+		} while (&(*row_it) != ann);
+
+		// Update the annotation addresses for this row's annotations until the end
+		do {
+			if ((*all_it)->row_data() == &row_data) {
+				*all_it = &(*row_it);
+				row_it++;
+			}
+			all_it++;
+		} while (all_it != all_annotations.end());
+	}
 }
 
 void DecodeSignal::binary_callback(srd_proto_data *pdata, void *decode_signal)
@@ -1509,11 +1628,21 @@ void DecodeSignal::on_data_received()
 	// to work with
 	if ((!error_message_.isEmpty()) && (get_input_segment_count() == 0))
 		return;
+	else {
+		error_message_.clear();
+		// TODO Emulate noquote()
+		qDebug().nospace() << name() << ": Error cleared";
+	}
 
 	if (!logic_mux_thread_.joinable())
 		begin_decode();
 	else
 		logic_mux_cond_.notify_one();
+}
+
+void DecodeSignal::on_annotation_visibility_changed()
+{
+	annotation_visibility_changed();
 }
 
 } // namespace data

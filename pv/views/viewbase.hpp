@@ -56,6 +56,7 @@ enum ViewType {
 	ViewTypeTrace,
 #ifdef ENABLE_DECODE
 	ViewTypeDecoderBinary,
+	ViewTypeTabularDecoder,
 #endif
 	ViewTypeCount  // Indicates how many view types there are, must always be last
 };
@@ -84,8 +85,6 @@ public:
 	Session& session();
 	const Session& session() const;
 
-	virtual void clear_signals();
-
 	/**
 	 * Returns the signal bases contained in this view.
 	 */
@@ -94,6 +93,7 @@ public:
 	virtual void clear_signalbases();
 
 	virtual void add_signalbase(const shared_ptr<data::SignalBase> signalbase);
+	virtual void remove_signalbase(const shared_ptr<data::SignalBase> signalbase);
 
 #ifdef ENABLE_DECODE
 	virtual void clear_decode_signals();
@@ -104,8 +104,9 @@ public:
 #endif
 
 	virtual void save_settings(QSettings &settings) const;
-
 	virtual void restore_settings(QSettings &settings);
+
+	virtual void focus_on_range(uint64_t start_sample, uint64_t end_sample);
 
 public Q_SLOTS:
 	virtual void trigger_event(int segment_id, util::Timestamp location);

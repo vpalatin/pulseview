@@ -27,7 +27,6 @@
 #include <vector>
 
 #include <QSettings>
-#include <QString>
 
 #include <libsigrokdecode/libsigrokdecode.h>
 
@@ -77,11 +76,17 @@ struct DecodeBinaryClass
 
 struct DecodeSegment
 {
-	map<const Row*, RowData> annotation_rows;
+	// Constructor is a no-op
+	DecodeSegment() { };
+	// Copy constructor is a no-op
+	DecodeSegment(DecodeSegment&& ds) { (void)ds; };
+
+	map<const Row*, RowData> annotation_rows;  // Note: Row is the same for all segments while RowData is not
 	pv::util::Timestamp start_time;
 	double samplerate;
 	int64_t samples_decoded_incl, samples_decoded_excl;
 	vector<DecodeBinaryClass> binary_classes;
+	deque<const Annotation*> all_annotations;
 };
 
 class DecodeSignal : public SignalBase
@@ -109,16 +114,15 @@ public:
 	void pause_decode();
 	void resume_decode();
 	bool is_paused() const;
-	QString error_message() const;
 
 	const vector<decode::DecodeChannel> get_channels() const;
 	void auto_assign_signals(const shared_ptr<Decoder> dec);
-	void assign_signal(const uint16_t channel_id, const SignalBase *signal);
+	void assign_signal(const uint16_t channel_id, shared_ptr<const SignalBase> signal);
 	int get_assigned_signal_count() const;
 
 	void set_initial_pin_state(const uint16_t channel_id, const int init_state);
 
-	double samplerate() const;
+	virtual double get_samplerate() const;
 	const pv::util::Timestamp start_time() const;
 
 	/**
@@ -176,15 +180,16 @@ public:
 	const DecodeBinaryClass* get_binary_data_class(uint32_t segment_id,
 		const Decoder* dec, uint32_t bin_class_id) const;
 
+	const deque<const Annotation*>* get_all_annotations_by_segment(uint32_t segment_id) const;
+
 	virtual void save_settings(QSettings &settings) const;
 
 	virtual void restore_settings(QSettings &settings);
 
 private:
-	void set_error_message(QString msg);
-
+	bool all_input_segments_complete(uint32_t segment_id) const;
 	uint32_t get_input_segment_count() const;
-	uint32_t get_input_samplerate(uint32_t segment_id) const;
+	double get_input_samplerate(uint32_t segment_id) const;
 
 	Decoder* get_decoder_by_instance(const srd_decoder *const srd_dec);
 
@@ -196,7 +201,7 @@ private:
 	void logic_mux_proc();
 
 	void decode_data(const int64_t abs_start_samplenum, const int64_t sample_count,
-		const shared_ptr<LogicSegment> input_segment);
+		const shared_ptr<const LogicSegment> input_segment);
 	void decode_proc();
 
 	void start_srd_session();
@@ -218,11 +223,14 @@ Q_SIGNALS:
 	void decode_reset();
 	void decode_finished();
 	void channels_updated();
+	void annotation_visibility_changed();
 
 private Q_SLOTS:
 	void on_capture_state_changed(int state);
 	void on_data_cleared();
 	void on_data_received();
+
+	void on_annotation_visibility_changed();
 
 private:
 	pv::Session &session_;
@@ -249,8 +257,6 @@ private:
 	atomic<bool> decode_interrupt_, logic_mux_interrupt_;
 
 	bool decode_paused_;
-
-	QString error_message_;
 };
 
 } // namespace data

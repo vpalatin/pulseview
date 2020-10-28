@@ -36,6 +36,11 @@ RowData::RowData(Row* row) :
 	assert(row);
 }
 
+const Row* RowData::row() const
+{
+	return row_;
+}
+
 uint64_t RowData::get_max_sample() const
 {
 	if (annotations_.empty())
@@ -58,7 +63,7 @@ void RowData::get_annotation_subset(
 
 	uint32_t max_ann_class_id = 0;
 	for (AnnotationClass* c : row_->ann_classes()) {
-		if (!c->visible)
+		if (!c->visible())
 			all_ann_classes_enabled = false;
 		else
 			all_ann_classes_disabled = false;
@@ -78,7 +83,7 @@ void RowData::get_annotation_subset(
 			vector<size_t> class_visible;
 			class_visible.resize(max_ann_class_id + 1, 0);
 			for (AnnotationClass* c : row_->ann_classes())
-				if (c->visible)
+				if (c->visible())
 					class_visible[c->id] = 1;
 
 			for (const auto& annotation : annotations_)
@@ -90,8 +95,36 @@ void RowData::get_annotation_subset(
 	}
 }
 
-void RowData::emplace_annotation(srd_proto_data *pdata)
+const deque<Annotation>& RowData::annotations() const
 {
+	return annotations_;
+}
+
+const Annotation* RowData::emplace_annotation(srd_proto_data *pdata)
+{
+	const srd_proto_data_annotation *const pda = (const srd_proto_data_annotation*)pdata->data;
+
+	uint32_t ann_class_id = pda->ann_class;
+
+	// Look up the longest annotation text to see if we have it in storage.
+	// This implies that if the longest text is the same, the shorter texts
+	// are expected to be the same, too. PDs that violate this assumption
+	// should be considered broken.
+	const char* const* ann_texts = (char**)pda->ann_text;
+	const QString ann0 = QString::fromUtf8(ann_texts[0]);
+	vector<QString>* storage_entry = &(ann_texts_[ann0]);
+
+	if (storage_entry->empty()) {
+		while (*ann_texts) {
+			storage_entry->emplace_back(QString::fromUtf8(*ann_texts));
+			ann_texts++;
+		}
+		storage_entry->shrink_to_fit();
+	}
+
+
+	const Annotation* result = nullptr;
+
 	// We insert the annotation in a way so that the annotation list
 	// is sorted by start sample. Otherwise, we'd have to sort when
 	// painting, which is expensive
@@ -108,11 +141,17 @@ void RowData::emplace_annotation(srd_proto_data *pdata)
 		if (it != annotations_.begin())
 			it++;
 
-		annotations_.emplace(it, pdata, row_);
+		it = annotations_.emplace(it, pdata->start_sample, pdata->end_sample,
+			storage_entry, ann_class_id, this);
+		result = &(*it);
 	} else {
-		annotations_.emplace_back(pdata, row_);
+		annotations_.emplace_back(pdata->start_sample, pdata->end_sample,
+			storage_entry, ann_class_id, this);
+		result = &(annotations_.back());
 		prev_ann_start_sample_ = pdata->start_sample;
 	}
+
+	return result;
 }
 
 }  // namespace decode

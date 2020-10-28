@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEWS_TRACEVIEW_ANALOGSIGNAL_HPP
-#define PULSEVIEW_PV_VIEWS_TRACEVIEW_ANALOGSIGNAL_HPP
+#ifndef PULSEVIEW_PV_VIEWS_TRACE_ANALOGSIGNAL_HPP
+#define PULSEVIEW_PV_VIEWS_TRACE_ANALOGSIGNAL_HPP
 
 #include <memory>
 
@@ -48,7 +48,6 @@ class AnalogSignal : public Signal
 
 private:
 	static const QPen AxisPen;
-	static const QColor SignalColors[4];
 	static const QColor GridMajorColor, GridMinorColor;
 	static const QColor SamplingPointColor;
 	static const QColor SamplingPointColorLo;
@@ -197,7 +196,8 @@ private:
 	int current_pixel_pos_;  // Only used during lookup table update
 
 	// ---------------------------------------------------------------------------
-	// Note: Make sure to update .. when adding a trace-configurable variable here
+	// Note: Make sure to update save_settings() and restore_settings() when
+	//       adding a trace-configurable variable here
 	float scale_;
 	int scale_index_;
 
@@ -213,4 +213,4 @@ private:
 } // namespace views
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEWS_TRACEVIEW_ANALOGSIGNAL_HPP
+#endif // PULSEVIEW_PV_VIEWS_TRACE_ANALOGSIGNAL_HPP

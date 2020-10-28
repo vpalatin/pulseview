@@ -17,19 +17,23 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_UTIL_HPP
-#define PULSEVIEW_UTIL_HPP
+#ifndef PULSEVIEW_PV_UTIL_HPP
+#define PULSEVIEW_PV_UTIL_HPP
 
 #include <cmath>
 #include <string>
 #include <vector>
 
 #ifndef Q_MOC_RUN
+// Workaround for https://github.com/boostorg/serialization/issues/186
+#include <boost/serialization/nvp.hpp>
+
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #endif
 
 #include <QMetaType>
 #include <QString>
+#include <QFontMetrics>
 
 using std::string;
 using std::vector;
@@ -61,6 +65,11 @@ int exponent(SIPrefix prefix);
 typedef boost::multiprecision::number<
 	boost::multiprecision::cpp_dec_float<24>,
 	boost::multiprecision::et_off> Timestamp;
+
+/**
+ * Chooses a prefix so that the value in front of the decimal point is between 1 and 999.
+ */
+SIPrefix determine_value_prefix(double v);
 
 /**
  * Formats a given timestamp with the specified SI prefix.
@@ -138,9 +147,18 @@ QString format_time_minutes(const Timestamp& t, signed precision = 0,
 
 vector<string> split_string(string text, string separator);
 
+/**
+ * Return the width of a string in a given font.
+ * @param[in] metric metrics of the font
+ * @param[in] string the string whose width should be determined
+ *
+ * @return width of the string in pixels
+ */
+std::streamsize text_width(const QFontMetrics &metric, const QString &string);
+
 } // namespace util
 } // namespace pv
 
 Q_DECLARE_METATYPE(pv::util::Timestamp)
 
-#endif // PULSEVIEW_UTIL_HPP
+#endif // PULSEVIEW_PV_UTIL_HPP

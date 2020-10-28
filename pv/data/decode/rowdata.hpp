@@ -20,14 +20,29 @@
 #ifndef PULSEVIEW_PV_DATA_DECODE_ROWDATA_HPP
 #define PULSEVIEW_PV_DATA_DECODE_ROWDATA_HPP
 
+#include <unordered_map>
 #include <vector>
+
+#include <QtGlobal>
+#include <QHash>
+#include <QString>
 
 #include <libsigrokdecode/libsigrokdecode.h>
 
 #include <pv/data/decode/annotation.hpp>
 
 using std::deque;
-using std::vector;
+using std::unordered_map;
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+namespace std {
+	template<> struct hash<QString> {
+		std::size_t operator()(const QString& s) const noexcept {
+			return (size_t) qHash(s);
+		}
+	};
+}
+#endif
 
 namespace pv {
 namespace data {
@@ -39,6 +54,8 @@ class RowData
 {
 public:
 	RowData(Row* row);
+
+	const Row* row() const;
 
 	uint64_t get_max_sample() const;
 
@@ -52,10 +69,13 @@ public:
 	void get_annotation_subset(deque<const pv::data::decode::Annotation*> &dest,
 		uint64_t start_sample, uint64_t end_sample) const;
 
-	void emplace_annotation(srd_proto_data *pdata);
+	const deque<Annotation>& annotations() const;
+
+	const Annotation* emplace_annotation(srd_proto_data *pdata);
 
 private:
 	deque<Annotation> annotations_;
+	unordered_map<QString, vector<QString> > ann_texts_;  // unordered_map since pointers must not change
 	Row* row_;
 	uint64_t prev_ann_start_sample_;
 };

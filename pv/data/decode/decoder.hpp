@@ -20,6 +20,7 @@
 #ifndef PULSEVIEW_PV_DATA_DECODE_DECODER_HPP
 #define PULSEVIEW_PV_DATA_DECODE_DECODER_HPP
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <set>
@@ -27,10 +28,13 @@
 
 #include <glib.h>
 
-#include <pv/data/signalbase.hpp>
+#include <QObject>
+
 #include <pv/data/decode/row.hpp>
 
+using std::deque;
 using std::map;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -50,13 +54,27 @@ namespace decode {
 
 class Decoder;
 
-struct AnnotationClass
+class AnnotationClass: public QObject
 {
+	Q_OBJECT
+
+public:
+	AnnotationClass(size_t _id, char* _name, char* _description, Row* _row);
+
+	bool visible() const;
+	void set_visible(bool visible);
+
+Q_SIGNALS:
+	void visibility_changed();
+
+public:
 	size_t id;
 	char* name;
 	char* description;
 	Row* row;
-	bool visible;
+
+private:
+	bool visible_;
 };
 
 struct DecodeChannel
@@ -64,7 +82,7 @@ struct DecodeChannel
 	uint16_t id;     ///< Global numerical ID for the decode channels in the stack
 	uint16_t bit_id; ///< Tells which bit within a sample represents this channel
 	const bool is_optional;
-	const pv::data::SignalBase *assigned_signal;
+	shared_ptr<const pv::data::SignalBase> assigned_signal;
 	const QString name, desc;
 	int initial_pin_state;
 	const shared_ptr<Decoder> decoder_;
@@ -79,14 +97,18 @@ struct DecodeBinaryClassInfo
 };
 
 
-class Decoder
+class Decoder : public QObject
 {
+	Q_OBJECT
+
 public:
-	Decoder(const srd_decoder *const dec);
+	Decoder(const srd_decoder *const dec, uint8_t stack_level);
 
 	virtual ~Decoder();
 
 	const srd_decoder* get_srd_decoder() const;
+
+	uint8_t get_stack_level() const;
 
 	const char* name() const;
 
@@ -97,7 +119,6 @@ public:
 	void set_channels(vector<DecodeChannel*> channels);
 
 	const map<string, GVariant*>& options() const;
-
 	void set_option(const char *id, GVariant *value);
 
 	void apply_all_options();
@@ -118,14 +139,22 @@ public:
 	uint32_t get_binary_class_count() const;
 	const DecodeBinaryClassInfo* get_binary_class(uint32_t id) const;
 
+Q_SIGNALS:
+	void annotation_visibility_changed();
+
+private Q_SLOTS:
+	void on_row_visibility_changed();
+	void on_class_visibility_changed();
+
 private:
 	const srd_decoder* const srd_decoder_;
+	uint8_t stack_level_;
 
 	bool visible_;
 
 	vector<DecodeChannel*> channels_;
-	vector<Row> rows_;
-	vector<AnnotationClass> ann_classes_;
+	deque<Row> rows_;
+	deque<AnnotationClass> ann_classes_;
 	vector<DecodeBinaryClassInfo> bin_classes_;
 	map<string, GVariant*> options_;
 	srd_decoder_inst *decoder_inst_;

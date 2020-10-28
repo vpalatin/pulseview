@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_SIGNALHANDLER_HPP
-#define PULSEVIEW_PV_SIGNALHANDLER_HPP
+#ifndef PULSEVIEW_SIGNALHANDLER_HPP
+#define PULSEVIEW_SIGNALHANDLER_HPP
 
 #include <QObject>
 
@@ -37,6 +37,7 @@ public:
 Q_SIGNALS:
 	void int_received();
 	void term_received();
+	void usr1_received();
 
 private Q_SLOTS:
 	void on_socket_notifier_activated();
@@ -51,4 +52,4 @@ private:
 	static int sockets_[2];
 };
 
-#endif // PULSEVIEW_PV_SIGNALHANDLER_HPP
+#endif // PULSEVIEW_SIGNALHANDLER_HPP

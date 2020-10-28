@@ -26,6 +26,7 @@ extern "C" {
 
 #include <pv/data/decode/annotation.hpp>
 #include <pv/data/decode/decoder.hpp>
+#include "pv/data/decode/rowdata.hpp"
 
 using std::vector;
 
@@ -33,61 +34,46 @@ namespace pv {
 namespace data {
 namespace decode {
 
-Annotation::Annotation(const srd_proto_data *const pdata, const Row *row) :
-	start_sample_(pdata->start_sample),
-	end_sample_(pdata->end_sample),
-	row_(row)
+Annotation::Annotation(uint64_t start_sample, uint64_t end_sample,
+	const vector<QString>* texts, uint32_t ann_class_id, const RowData *data) :
+	start_sample_(start_sample),
+	end_sample_(end_sample),
+	texts_(texts),
+	ann_class_id_(ann_class_id),
+	data_(data)
 {
-	assert(pdata);
-	const srd_proto_data_annotation *const pda =
-		(const srd_proto_data_annotation*)pdata->data;
-	assert(pda);
-
-	ann_class_id_ = (Class)(pda->ann_class);
-
-	annotations_ = new vector<QString>();
-
-	const char *const *annotations = (char**)pda->ann_text;
-	while (*annotations) {
-		annotations_->push_back(QString::fromUtf8(*annotations));
-		annotations++;
-	}
-
-	annotations_->shrink_to_fit();
 }
 
 Annotation::Annotation(Annotation&& a) :
 	start_sample_(a.start_sample_),
 	end_sample_(a.end_sample_),
-	annotations_(a.annotations_),
-	row_(a.row_),
-	ann_class_id_(a.ann_class_id_)
+	texts_(a.texts_),
+	ann_class_id_(a.ann_class_id_),
+	data_(a.data_)
 {
-	a.annotations_ = nullptr;
 }
 
 Annotation& Annotation::operator=(Annotation&& a)
 {
 	if (&a != this) {
-		if (annotations_)
-			delete annotations_;
-
 		start_sample_ = a.start_sample_;
 		end_sample_ = a.end_sample_;
-		annotations_ = a.annotations_;
-		row_ = a.row_;
+		texts_ = a.texts_;
 		ann_class_id_ = a.ann_class_id_;
-
-		a.annotations_ = nullptr;
+		data_ = a.data_;
 	}
 
 	return *this;
 }
 
-Annotation::~Annotation()
+const RowData* Annotation::row_data() const
 {
-	if (annotations_)
-		delete annotations_;
+	return data_;
+}
+
+const Row* Annotation::row() const
+{
+	return data_->row();
 }
 
 uint64_t Annotation::start_sample() const
@@ -100,7 +86,12 @@ uint64_t Annotation::end_sample() const
 	return end_sample_;
 }
 
-Annotation::Class Annotation::ann_class_id() const
+uint64_t Annotation::length() const
+{
+	return end_sample_ - start_sample_;
+}
+
+uint32_t Annotation::ann_class_id() const
 {
 	return ann_class_id_;
 }
@@ -108,19 +99,50 @@ Annotation::Class Annotation::ann_class_id() const
 const QString Annotation::ann_class_name() const
 {
 	const AnnotationClass* ann_class =
-		row_->decoder()->get_ann_class_by_id(ann_class_id_);
+		data_->row()->decoder()->get_ann_class_by_id(ann_class_id_);
 
 	return QString(ann_class->name);
 }
 
-const vector<QString>* Annotation::annotations() const
+const QString Annotation::ann_class_description() const
 {
-	return annotations_;
+	const AnnotationClass* ann_class =
+		data_->row()->decoder()->get_ann_class_by_id(ann_class_id_);
+
+	return QString(ann_class->description);
 }
 
-const Row* Annotation::row() const
+const vector<QString>* Annotation::annotations() const
 {
-	return row_;
+	return texts_;
+}
+
+const QString Annotation::longest_annotation() const
+{
+	return texts_->front();
+}
+
+bool Annotation::visible() const
+{
+	const Row* row = data_->row();
+
+	return (row->visible() && row->class_is_visible(ann_class_id_)
+		&& row->decoder()->visible());
+}
+
+const QColor Annotation::color() const
+{
+	return data_->row()->get_class_color(ann_class_id_);
+}
+
+const QColor Annotation::bright_color() const
+{
+	return data_->row()->get_bright_class_color(ann_class_id_);
+}
+
+const QColor Annotation::dark_color() const
+{
+	return data_->row()->get_dark_class_color(ann_class_id_);
 }
 
 bool Annotation::operator<(const Annotation &other) const

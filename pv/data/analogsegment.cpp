@@ -89,11 +89,21 @@ void AnalogSegment::append_interleaved_samples(const float *data,
 	append_payload_to_envelope_levels();
 
 	if (sample_count > 1)
-		owner_.notify_samples_added(this, prev_sample_count + 1,
-			prev_sample_count + 1 + sample_count);
+		owner_.notify_samples_added(shared_ptr<Segment>(shared_from_this()),
+			prev_sample_count + 1, prev_sample_count + 1 + sample_count);
 	else
-		owner_.notify_samples_added(this, prev_sample_count + 1,
-			prev_sample_count + 1);
+		owner_.notify_samples_added(shared_ptr<Segment>(shared_from_this()),
+			prev_sample_count + 1, prev_sample_count + 1);
+}
+
+float AnalogSegment::get_sample(int64_t sample_num) const
+{
+	assert(sample_num >= 0);
+	assert(sample_num <= (int64_t)sample_count_);
+
+	lock_guard<recursive_mutex> lock(mutex_);  // Because of free_unused_memory()
+
+	return *((const float*)get_raw_sample(sample_num));
 }
 
 void AnalogSegment::get_samples(int64_t start_sample, int64_t end_sample,

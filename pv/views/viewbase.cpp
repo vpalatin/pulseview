@@ -36,7 +36,8 @@ namespace views {
 const char* ViewTypeNames[ViewTypeCount] = {
 	"Trace View",
 #ifdef ENABLE_DECODE
-	"Binary Decoder Output View"
+	"Binary Decoder Output View",
+	"Tabular Decoder Output View"
 #endif
 };
 
@@ -83,11 +84,6 @@ const Session& ViewBase::session() const
 	return session_;
 }
 
-void ViewBase::clear_signals()
-{
-	clear_signalbases();
-}
-
 vector< shared_ptr<data::SignalBase> > ViewBase::signalbases() const
 {
 	return signalbases_;
@@ -113,6 +109,18 @@ void ViewBase::add_signalbase(const shared_ptr<data::SignalBase> signalbase)
 		this, SLOT(on_data_updated()));
 	connect(signalbase.get(), SIGNAL(samples_added(uint64_t, uint64_t, uint64_t)),
 		this, SLOT(on_samples_added(uint64_t, uint64_t, uint64_t)));
+}
+
+void ViewBase::remove_signalbase(const shared_ptr<data::SignalBase> signalbase)
+{
+	disconnect(signalbase.get(), SIGNAL(samples_cleared()),
+		this, SLOT(on_data_updated()));
+	disconnect(signalbase.get(), SIGNAL(samples_added(uint64_t, uint64_t, uint64_t)),
+		this, SLOT(on_samples_added(uint64_t, uint64_t, uint64_t)));
+
+	signalbases_.erase(std::remove_if(signalbases_.begin(), signalbases_.end(),
+		[&](shared_ptr<data::SignalBase> s) { return s == signalbase; }),
+		signalbases_.end());
 }
 
 #ifdef ENABLE_DECODE
@@ -143,6 +151,12 @@ void ViewBase::save_settings(QSettings &settings) const
 void ViewBase::restore_settings(QSettings &settings)
 {
 	(void)settings;
+}
+
+void ViewBase::focus_on_range(uint64_t start_sample, uint64_t end_sample)
+{
+	(void)start_sample;
+	(void)end_sample;
 }
 
 void ViewBase::trigger_event(int segment_id, util::Timestamp location)

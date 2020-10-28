@@ -24,6 +24,7 @@ set(pulseview_TEST_SOURCES
 	${PROJECT_SOURCE_DIR}/pv/globalsettings.cpp
 	${PROJECT_SOURCE_DIR}/pv/logging.cpp
 	${PROJECT_SOURCE_DIR}/pv/mainwindow.cpp
+	${PROJECT_SOURCE_DIR}/pv/metadata_obj.cpp
 	${PROJECT_SOURCE_DIR}/pv/session.cpp
 	${PROJECT_SOURCE_DIR}/pv/storesession.cpp
 	${PROJECT_SOURCE_DIR}/pv/util.cpp
@@ -34,6 +35,7 @@ set(pulseview_TEST_SOURCES
 	${PROJECT_SOURCE_DIR}/pv/data/analogsegment.cpp
 	${PROJECT_SOURCE_DIR}/pv/data/logic.cpp
 	${PROJECT_SOURCE_DIR}/pv/data/logicsegment.cpp
+	${PROJECT_SOURCE_DIR}/pv/data/mathsignal.cpp
 	${PROJECT_SOURCE_DIR}/pv/data/segment.cpp
 	${PROJECT_SOURCE_DIR}/pv/data/signalbase.cpp
 	${PROJECT_SOURCE_DIR}/pv/data/signaldata.cpp
@@ -61,6 +63,7 @@ set(pulseview_TEST_SOURCES
 	${PROJECT_SOURCE_DIR}/pv/views/trace/cursorpair.cpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/flag.cpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/header.cpp
+	${PROJECT_SOURCE_DIR}/pv/views/trace/mathsignal.cpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/marginwidget.cpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/logicsignal.cpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/ruler.cpp
@@ -104,9 +107,11 @@ set(pulseview_TEST_SOURCES
 set(pulseview_TEST_HEADERS
 	${PROJECT_SOURCE_DIR}/pv/application.hpp
 	${PROJECT_SOURCE_DIR}/pv/devicemanager.hpp
+	${PROJECT_SOURCE_DIR}/pv/exprtk.hpp
 	${PROJECT_SOURCE_DIR}/pv/globalsettings.hpp
 	${PROJECT_SOURCE_DIR}/pv/logging.hpp
 	${PROJECT_SOURCE_DIR}/pv/mainwindow.hpp
+	${PROJECT_SOURCE_DIR}/pv/metadata_obj.hpp
 	${PROJECT_SOURCE_DIR}/pv/session.hpp
 	${PROJECT_SOURCE_DIR}/pv/storesession.hpp
 	${PROJECT_SOURCE_DIR}/pv/binding/device.hpp
@@ -114,6 +119,7 @@ set(pulseview_TEST_HEADERS
 	${PROJECT_SOURCE_DIR}/pv/data/analogsegment.hpp
 	${PROJECT_SOURCE_DIR}/pv/data/logic.hpp
 	${PROJECT_SOURCE_DIR}/pv/data/logicsegment.hpp
+	${PROJECT_SOURCE_DIR}/pv/data/mathsignal.hpp
 	${PROJECT_SOURCE_DIR}/pv/data/signalbase.hpp
 	${PROJECT_SOURCE_DIR}/pv/devices/device.hpp
 	${PROJECT_SOURCE_DIR}/pv/dialogs/connect.hpp
@@ -135,6 +141,7 @@ set(pulseview_TEST_HEADERS
 	${PROJECT_SOURCE_DIR}/pv/views/trace/flag.hpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/header.hpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/logicsignal.hpp
+	${PROJECT_SOURCE_DIR}/pv/views/trace/mathsignal.hpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/marginwidget.hpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/ruler.hpp
 	${PROJECT_SOURCE_DIR}/pv/views/trace/signal.hpp
@@ -176,6 +183,8 @@ if(ENABLE_DECODE)
 		${PROJECT_SOURCE_DIR}/pv/subwindows/decoder_selector/subwindow.cpp
 		${PROJECT_SOURCE_DIR}/pv/views/decoder_binary/view.cpp
 		${PROJECT_SOURCE_DIR}/pv/views/decoder_binary/QHexView.cpp
+		${PROJECT_SOURCE_DIR}/pv/views/tabular_decoder/model.cpp
+		${PROJECT_SOURCE_DIR}/pv/views/tabular_decoder/view.cpp
 		${PROJECT_SOURCE_DIR}/pv/views/trace/decodetrace.cpp
 		${PROJECT_SOURCE_DIR}/pv/widgets/decodergroupbox.cpp
 		${PROJECT_SOURCE_DIR}/pv/widgets/decodermenu.cpp
@@ -186,6 +195,7 @@ if(ENABLE_DECODE)
 		${PROJECT_SOURCE_DIR}/pv/subwindows/decoder_selector/subwindow.hpp
 		${PROJECT_SOURCE_DIR}/pv/views/decoder_binary/view.hpp
 		${PROJECT_SOURCE_DIR}/pv/views/decoder_binary/QHexView.hpp
+		${PROJECT_SOURCE_DIR}/pv/views/tabular_decoder/view.hpp
 		${PROJECT_SOURCE_DIR}/pv/views/trace/decodetrace.hpp
 		${PROJECT_SOURCE_DIR}/pv/widgets/decodergroupbox.hpp
 		${PROJECT_SOURCE_DIR}/pv/widgets/decodermenu.hpp

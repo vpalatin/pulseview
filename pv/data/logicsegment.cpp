@@ -63,8 +63,22 @@ LogicSegment::LogicSegment(pv::data::Logic& owner, uint32_t segment_id,
 LogicSegment::~LogicSegment()
 {
 	lock_guard<recursive_mutex> lock(mutex_);
+
 	for (MipMapLevel &l : mip_map_)
 		free(l.data);
+}
+
+shared_ptr<const LogicSegment> LogicSegment::get_shared_ptr() const
+{
+	shared_ptr<const Segment> ptr = nullptr;
+
+	try {
+		ptr = shared_from_this();
+	} catch (std::exception& e) {
+		/* Do nothing, ptr remains a null pointer */
+	}
+
+	return ptr ? std::dynamic_pointer_cast<const LogicSegment>(ptr) : nullptr;
 }
 
 template <class T>
@@ -328,6 +342,7 @@ void LogicSegment::append_payload(shared_ptr<sigrok::Logic> logic)
 
 void LogicSegment::append_payload(void *data, uint64_t data_size)
 {
+	assert(unit_size_ > 0);
 	assert((data_size % unit_size_) == 0);
 
 	lock_guard<recursive_mutex> lock(mutex_);
@@ -341,11 +356,11 @@ void LogicSegment::append_payload(void *data, uint64_t data_size)
 	append_payload_to_mipmap();
 
 	if (sample_count > 1)
-		owner_.notify_samples_added(this, prev_sample_count + 1,
-			prev_sample_count + 1 + sample_count);
+		owner_.notify_samples_added(SharedPtrToSegment(shared_from_this()),
+			prev_sample_count + 1, prev_sample_count + 1 + sample_count);
 	else
-		owner_.notify_samples_added(this, prev_sample_count + 1,
-			prev_sample_count + 1);
+		owner_.notify_samples_added(SharedPtrToSegment(shared_from_this()),
+			prev_sample_count + 1, prev_sample_count + 1);
 }
 
 void LogicSegment::get_samples(int64_t start_sample,

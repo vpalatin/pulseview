@@ -36,6 +36,8 @@
 #include <libsigrokdecode/libsigrokdecode.h>
 #endif
 
+#include <pv/exprtk.hpp>
+
 #include "application.hpp"
 #include "config.h"
 #include "globalsettings.hpp"
@@ -65,7 +67,7 @@ Application::Application(int &argc, char* argv[]) :
 	setOrganizationDomain("sigrok.org");
 }
 
-QStringList Application::get_languages()
+const QStringList Application::get_languages() const
 {
 	QStringList files = QDir(":/l10n/").entryList(QStringList("*.qm"), QDir::Files);
 
@@ -79,6 +81,14 @@ QStringList Application::get_languages()
 	result.sort(Qt::CaseInsensitive);
 
 	return result;
+}
+
+const QString Application::get_language_editors(const QString& language) const
+{
+	if (language == "de") return "Sören Apel, Uwe Hermann";
+	if (language == "es_mx") return "Carlos Diaz";
+
+	return QString();
 }
 
 void Application::switch_language(const QString& language)
@@ -140,6 +150,7 @@ void Application::collect_version_info(shared_ptr<sigrok::Context> context)
 	version_info_.emplace_back("Qt", qVersion());
 	version_info_.emplace_back("glibmm", PV_GLIBMM_VERSION);
 	version_info_.emplace_back("Boost", BOOST_LIB_VERSION);
+	version_info_.emplace_back("exprtk", QString::fromUtf8(exprtk::information::date));
 
 	version_info_.emplace_back("libsigrok", QString("%1/%2 (rt: %3/%4)")
 		.arg(SR_PACKAGE_VERSION_STRING, SR_LIB_VERSION_STRING,

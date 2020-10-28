@@ -17,13 +17,16 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEW_DECODE_ANNOTATION_HPP
-#define PULSEVIEW_PV_VIEW_DECODE_ANNOTATION_HPP
+#ifndef PULSEVIEW_PV_DATA_DECODE_ANNOTATION_HPP
+#define PULSEVIEW_PV_DATA_DECODE_ANNOTATION_HPP
 
 #include <cstdint>
 #include <vector>
 
+#include <QColor>
 #include <QString>
+
+#include "pv/data/decode/row.hpp"
 
 using std::vector;
 
@@ -33,40 +36,48 @@ namespace pv {
 namespace data {
 namespace decode {
 
-class Row;
+class RowData;
 
 class Annotation
 {
 public:
-	typedef uint32_t Class;
-
-public:
-	Annotation(const srd_proto_data *const pdata, const Row *row);
+	Annotation(uint64_t start_sample, uint64_t end_sample,
+		const vector<QString>* texts, uint32_t ann_class_id, const RowData *data);
 	Annotation(Annotation&& a);
 	Annotation& operator=(Annotation&& a);
-	~Annotation();
+
+	const RowData* row_data() const;
+	const Row* row() const;
 
 	uint64_t start_sample() const;
 	uint64_t end_sample() const;
+	uint64_t length() const;
 
-	Class ann_class_id() const;
+	uint32_t ann_class_id() const;
 	const QString ann_class_name() const;
+	const QString ann_class_description() const;
 
 	const vector<QString>* annotations() const;
-	const Row* row() const;
+	const QString longest_annotation() const;
+
+	bool visible() const;
+
+	const QColor color() const;
+	const QColor bright_color() const;
+	const QColor dark_color() const;
 
 	bool operator<(const Annotation &other) const;
 
 private:
 	uint64_t start_sample_;
 	uint64_t end_sample_;
-	vector<QString>* annotations_;
-	const Row *row_;
-	Class ann_class_id_;
+	const vector<QString>* texts_;
+	uint32_t ann_class_id_;
+	const RowData* data_;
 };
 
 } // namespace decode
 } // namespace data
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEW_DECODE_ANNOTATION_HPP
+#endif // PULSEVIEW_PV_DATA_DECODE_ANNOTATION_HPP

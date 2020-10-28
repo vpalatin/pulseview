@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_SETTINGS_HPP
-#define PULSEVIEW_PV_SETTINGS_HPP
+#ifndef PULSEVIEW_PV_DIALOGS_SETTINGS_HPP
+#define PULSEVIEW_PV_DIALOGS_SETTINGS_HPP
 
 #include <QCheckBox>
 #include <QColor>
@@ -53,10 +53,10 @@ public:
 	QWidget *get_about_page(QWidget *parent) const;
 	QWidget *get_logging_page(QWidget *parent) const;
 
+private Q_SLOTS:
 	void accept();
 	void reject();
 
-private Q_SLOTS:
 	void on_page_changed(QListWidgetItem *current, QListWidgetItem *previous);
 	void on_general_language_changed(const QString &text);
 	void on_general_theme_changed(int value);
@@ -102,4 +102,4 @@ private:
 } // namespace dialogs
 } // namespace pv
 
-#endif // PULSEVIEW_PV_SETTINGS_HPP
+#endif // PULSEVIEW_PV_DIALOGS_SETTINGS_HPP

@@ -17,8 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PULSEVIEW_PV_VIEWS_TRACEVIEW_DECODETRACE_HPP
-#define PULSEVIEW_PV_VIEWS_TRACEVIEW_DECODETRACE_HPP
+#ifndef PULSEVIEW_PV_VIEWS_TRACE_DECODETRACE_HPP
+#define PULSEVIEW_PV_VIEWS_TRACE_DECODETRACE_HPP
 
 #include <config.h>
 #include "trace.hpp"
@@ -100,10 +100,6 @@ struct DecodeTraceRow {
 	QWidget* selector_container;
 	QCheckBox* row_visibility_checkbox;
 	vector<QCheckBox*> selectors;
-
-	QColor row_color;
-	map<uint32_t, QColor> ann_class_color;
-	map<uint32_t, QColor> ann_class_dark_color;
 };
 
 class ContainerWidget : public QWidget
@@ -124,7 +120,6 @@ class DecodeTrace : public Trace
 	Q_OBJECT
 
 private:
-	static const QColor ErrorBgColor;
 	static const QColor NoDecodeColor;
 	static const QColor ExpandMarkerWarnColor;
 	static const QColor ExpandMarkerHiddenColor;
@@ -202,7 +197,7 @@ private:
 	void draw_annotation(const Annotation* a, QPainter &p,
 		const ViewItemPaintParams &pp, int y, const DecodeTraceRow& row) const;
 
-	void draw_annotation_block(qreal start, qreal end, Annotation::Class ann_class,
+	void draw_annotation_block(qreal start, qreal end, uint32_t ann_class,
 		bool use_ann_format, QPainter &p, int y, const DecodeTraceRow& row) const;
 
 	void draw_instant(const Annotation* a, QPainter &p, qreal x, int y) const;
@@ -224,9 +219,6 @@ private:
 	 * 	sample that correspond to the start and end coordinates.
 	 */
 	pair<uint64_t, uint64_t> get_view_sample_range(int x_start, int x_end) const;
-
-	QColor get_row_color(int row_index) const;
-	QColor get_annotation_color(QColor row_color, int annotation_index) const;
 
 	unsigned int get_row_y(const DecodeTraceRow* row) const;
 
@@ -263,6 +255,8 @@ private:
 
 private Q_SLOTS:
 	void on_setting_changed(const QString &key, const QVariant &value);
+
+	void on_color_changed(const QColor &color);
 
 	void on_new_annotations();
 	void on_delayed_trace_update();
@@ -340,4 +334,4 @@ private:
 } // namespace views
 } // namespace pv
 
-#endif // PULSEVIEW_PV_VIEWS_TRACEVIEW_DECODETRACE_HPP
+#endif // PULSEVIEW_PV_VIEWS_TRACE_DECODETRACE_HPP
